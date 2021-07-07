@@ -16,11 +16,17 @@
 
 // HTTP POST CREATE TENANT
 String jsonFile;
-const char* serverName;
+String serverName;
 int httpResponseCode;
 unsigned long lastTime = 0;
 unsigned long timerDelay = 5000;
 HTTPClient http;
+HTTPClient http2;
+HTTPClient http3;
+HTTPClient http4;
+HTTPClient http5;
+HTTPClient http6;
+HTTPClient http7;
    
 const double ppmIncrement = 0.001005; 
 const double ppmstop = 1.8;
@@ -35,7 +41,10 @@ char topPRESS[30];
 
 const char* SSID = "Bates Motel";
 const char* PSK = "1338591091304385";
-const char* MQTT_BROKER = "192.168.2.109";
+const char* MQTT_BROKER = "141.19.44.65";
+const char* mqttUser = "PA28@flugplatz";
+const char* mqttPassword = "flugzeug";
+const char* clientIds = sensorname;
 char wiFiHostname[ ] = sensorname;
 String clientId = sensorname;
 long lastMsg = 0;
@@ -184,11 +193,9 @@ void setup() {
   bme280.parameter.tempOutsideCelsius = 15;            //default value of 15°C
   bme280.init();
   setup_wifi();
-  client.setServer(MQTT_BROKER, 1883);
+  client.setServer(MQTT_BROKER, 8883);
 
-  if (!client.connected()) {
-       reconnect();
-   }
+
 
   lcd.clear();
   if ( noWifi == true ) {
@@ -219,7 +226,7 @@ void setup() {
   // HTTP POST CREATE TENANT #############################################
   //######################################################################
 
-  serverName = "http://141.19.44.65:28443/v1/tenants/joel";
+  serverName = "http://141.19.44.65:28443/v1/tenants/flugplatz";
   http.begin(espClient,serverName);
 
   httpResponseCode = http.POST("");
@@ -238,16 +245,16 @@ void setup() {
   lcd.print(httpResponseCode);
 
   http.end();
-  delay(1000);
+  delay(3000);
 
   //######################################################################
   // HTTP POST CREATE DEVICE #############################################
   //######################################################################
 
-  serverName = "http://141.19.44.65:28443/v1/devices/joel/org.fournier:aircraft";
-  http.begin(espClient,serverName);
+  serverName = "http://141.19.44.65:28443/v1/devices/flugplatz/org.Piper:PA28";
+  http2.begin(espClient,serverName);
 
-  httpResponseCode = http.POST("");
+  httpResponseCode = http2.POST("");
 
   Serial.print("HTTP Response code: ");
   Serial.println(httpResponseCode);
@@ -262,8 +269,8 @@ void setup() {
   lcd.setCursor(16,3);
   lcd.print(httpResponseCode);
 
-  http.end();
-  delay(1000);
+  http2.end();
+  delay(3000);
 
   //######################################################################
   // HTTP PUT CREDENTIALS ################################################
@@ -272,7 +279,7 @@ void setup() {
   DynamicJsonDocument configJSON(1024);
 
   configJSON["type"] = "hashed-password";
-  configJSON["auth-id"] = "aircraft";
+  configJSON["auth-id"] = "PA28";
   configJSON["secrets"][0]["pwd-plain"] = "flugzeug";
 
   serializeJson(configJSON, jsonFile);
@@ -289,11 +296,11 @@ void setup() {
   }
   */
 
-  serverName = "http://141.19.44.65:28443/v1/credentials/joel/org.fournier:aircraft";
-  http.begin(espClient,serverName);
-  http.addHeader("Content-Type", "application/json");
+  serverName = "http://141.19.44.65:28443/v1/credentials/flugplatz/org.Piper:PA28";
+  http3.begin(espClient,serverName);
+  http3.addHeader("Content-Type", "application/json");
 
-  httpResponseCode = http.PUT("["+jsonFile+"]");
+  httpResponseCode = http3.PUT("["+jsonFile+"]");
 
   Serial.print("HTTP Response code: ");
   Serial.println(httpResponseCode);
@@ -308,8 +315,8 @@ void setup() {
   lcd.setCursor(16,3);
   lcd.print(httpResponseCode);
 
-  http.end();
-  delay(1000);
+  http3.end();
+  delay(5000);
 
   //######################################################################
   // HTTP POST DITTO PIGGYBACK ###########################################
@@ -324,7 +331,7 @@ void setup() {
       "piggybackCommand": {
         "type": "connectivity.commands:createConnection",
         "connection": {
-          "id": "hono-connection-for-joel",
+          "id": "hono-connection-for-flugplatz",
           "connectionType": "amqp-10",
           "connectionStatus": "open",
           "uri": "amqp://consumer%40HONO:verysecret@c2e-dispatch-router-ext:15672",
@@ -332,8 +339,8 @@ void setup() {
           "sources": [
             {
               "addresses": [
-                "telemetry/joel",
-                "event/joel"
+                "telemetry/flugplatz",
+                "event/flugplatz"
               ],
               "authorizationContext": [
                 "pre-authenticated:hono-connection"
@@ -352,7 +359,7 @@ void setup() {
                 "enabled": true,
                 "address": "{{ header:reply-to }}",
                 "headerMapping": {
-                  "to": "command/joel/{{ header:hono-device-id }}",
+                  "to": "command/flugplatz/{{ header:hono-device-id }}",
                   "subject": "{{ header:subject | fn:default(topic:action-subject) | fn:default(topic:criterion) }}-response",
                   "correlation-id": "{{ header:correlation-id }}",
                   "content-type": "{{ header:content-type | fn:default('application/vnd.eclipse.ditto+json') }}"
@@ -369,7 +376,7 @@ void setup() {
             },
             {
               "addresses": [
-                "command_response/joel/replies"
+                "command_response/flugplatz/replies"
               ],
               "authorizationContext": [
                 "pre-authenticated:hono-connection"
@@ -390,7 +397,7 @@ void setup() {
           ],
           "targets": [
             {
-              "address": "command/joel",
+              "address": "command/flugplatz",
               "authorizationContext": [
                 "pre-authenticated:hono-connection"
               ],
@@ -399,15 +406,15 @@ void setup() {
                 "_/_/things/live/messages"
               ],
               "headerMapping": {
-                "to": "command/joel/{{ thing:id }}",
+                "to": "command/flugplatz/{{ thing:id }}",
                 "subject": "{{ header:subject | fn:default(topic:action-subject) }}",
                 "content-type": "{{ header:content-type | fn:default('application/vnd.eclipse.ditto+json') }}",
                 "correlation-id": "{{ header:correlation-id }}",
-                "reply-to": "{{ fn:default('command_response/joel/replies') | fn:filter(header:response-required,'ne','false') }}"
+                "reply-to": "{{ fn:default('command_response/flugplatz/replies') | fn:filter(header:response-required,'ne','false') }}"
               }
             },
             {
-              "address": "command/joel",
+              "address": "command/flugplatz",
               "authorizationContext": [
                 "pre-authenticated:hono-connection"
               ],
@@ -416,7 +423,7 @@ void setup() {
                 "_/_/things/live/events"
               ],
               "headerMapping": {
-                "to": "command/joel/{{ thing:id }}",
+                "to": "command/flugplatz/{{ thing:id }}",
                 "subject": "{{ header:subject | fn:default(topic:action-subject) }}",
                 "content-type": "{{ header:content-type | fn:default('application/vnd.eclipse.ditto+json') }}",
                 "correlation-id": "{{ header:correlation-id }}"
@@ -429,15 +436,16 @@ void setup() {
   )=====";
 
   serverName = "http://141.19.44.65:38443/devops/piggyback/connectivity";
-  http.begin(espClient,serverName);
-  http.setAuthorization("devops", "foobar");
-  http.addHeader("Content-Type", "application/json");
+  http4.begin(espClient,serverName);
+  http4.setAuthorization("devops", "foobar");
+  http4.addHeader("Content-Type", "application/json");
   
-  httpResponseCode = http.POST(dittoPiggyback);
+  httpResponseCode = http4.POST(dittoPiggyback);
   
+  Serial.println(dittoPiggyback);
   Serial.print("HTTP Response code: ");
   Serial.println(httpResponseCode);
-  //Serial.println(http.getString());
+  Serial.println(http4.getString());
 
   lcd.clear();
   lcd.setCursor(0,0);
@@ -449,8 +457,8 @@ void setup() {
   lcd.setCursor(16,3);
   lcd.print(httpResponseCode);
 
-  http.end();
-  delay(1000);
+  http4.end();
+  delay(5000);
   
 
   //######################################################################
@@ -502,16 +510,17 @@ void setup() {
     }
   )=====";
 
-  serverName = "http://141.19.44.65:38443/api/2/policies/org.fournier:rf4";
-  http.begin(espClient,serverName);
-  http.setAuthorization("ditto", "ditto");
-  http.addHeader("Content-Type", "application/json");
+  serverName = "http://141.19.44.65:38443/api/2/policies/org.Piper:PA28";
+  http5.begin(espClient,serverName);
+  Serial.println(serverName);
+  http5.setAuthorization("ditto", "ditto");
+  http5.addHeader("Content-Type", "application/json");
   
-  httpResponseCode = http.PUT(dittoPolicy);
+  httpResponseCode = http5.PUT(dittoPolicy);
   
   Serial.print("HTTP Response code: ");
   Serial.println(httpResponseCode);
-  //Serial.println(http.getString());
+  Serial.println(http5.getString());
 
   lcd.clear();
   lcd.setCursor(0,0);
@@ -523,8 +532,8 @@ void setup() {
   lcd.setCursor(16,3);
   lcd.print(httpResponseCode);
 
-  http.end();
-  delay(1000);
+  http5.end();
+  delay(5000);
   
   //######################################################################
   // HTTP CREATE DITTO THING #############################################
@@ -532,7 +541,7 @@ void setup() {
   
   String dittoTwin = R"=====(
     {
-      "policyId": "org.fournier:rf4",
+      "policyId": "org.Piper:PA28",
       "attributes": {
         "location": "Germany",
         "airportID": "EDRO",
@@ -543,16 +552,17 @@ void setup() {
     }
   )=====";
 
-  serverName = "http://141.19.44.65:38443/api/2/things/org.fournier:rf4";
-  http.begin(espClient,serverName);
-  http.setAuthorization("ditto", "ditto");
-  http.addHeader("Content-Type", "application/json");
+  serverName = "http://141.19.44.65:38443/api/2/things/org.Piper:PA28";
+  http6.begin(espClient,serverName);
+  Serial.println(serverName);
+  http6.setAuthorization("ditto", "ditto");
+  http6.addHeader("Content-Type", "application/json");
   
-  httpResponseCode = http.PUT(dittoTwin);
+  httpResponseCode = http6.PUT(dittoTwin);
   
   Serial.print("HTTP Response code: ");
   Serial.println(httpResponseCode);
-  Serial.println(http.getString());
+  Serial.println(http6.getString());
 
   lcd.clear();
   lcd.setCursor(0,0);
@@ -564,8 +574,8 @@ void setup() {
   lcd.setCursor(16,3);
   lcd.print(httpResponseCode);
 
-  http.end();
-  delay(1000);
+  http6.end();
+  delay(5000);
   
 
   //######################################################################
@@ -574,44 +584,37 @@ void setup() {
   
   String dittoFeatures = R"=====(
     {
-      "engine": {
+      "telemetry": {
         "properties": {
-          "manufacturer": [
-            "com.rectimo:4AR1200"
-          ],
-          "yearOfManufacturing": 1968,
-          "status": {
-            "running": {
-              "value": true
-            },
-            "JoelTemp": {
-              "value": null,
-            "unit": "Celsius"
-            },
-            "JoelHum": {
-              "value": null,
-            "unit": "Celsius"
-            },
-            "JoelCO2": {
-              "value": null,
-            "unit": "ppm"
-            }
+          "JoelTemp": {
+            "value": null,
+          "unit": "Celsius"
+          },
+          "JoelHum": {
+            "value": null,
+          "unit": "Celsius"
+          },
+          "JoelCO2": {
+            "value": null,
+          "unit": "ppm"
           }
+          
         }
       }
     }
   )=====";
 
-  serverName = "http://141.19.44.65:38443/api/2/things/org.fournier:rf4/features";
-  http.begin(espClient,serverName);
-  http.setAuthorization("ditto", "ditto");
-  http.addHeader("Content-Type", "application/json");
+  serverName = "http://141.19.44.65:38443/api/2/things/org.Piper:PA28/features";
+  http7.begin(espClient,serverName);
+  Serial.println(serverName);
+  http7.setAuthorization("ditto", "ditto");
+  http7.addHeader("Content-Type", "application/json");
   
-  httpResponseCode = http.PUT(dittoFeatures);
+  httpResponseCode = http7.PUT(dittoFeatures);
   
   Serial.print("HTTP Response code: ");
   Serial.println(httpResponseCode);
-  Serial.println(http.getString());
+  Serial.println(http7.getString());
 
   lcd.clear();
   lcd.setCursor(0,0);
@@ -623,16 +626,53 @@ void setup() {
   lcd.setCursor(16,3);
   lcd.print(httpResponseCode);
 
-  http.end();
-  delay(1000);
+  http7.end();
+  delay(5000);
 
+  lcd.clear();
+  if ( noWifi == true ) {
+    lcd.setCursor(0,0);
+    lcd.print("inp smart CO2 noWiFi");
+  } else {
+    lcd.setCursor(0,0);
+    lcd.print("inp smart CO2 sensor");
+  }
+  lcd.backlight();
+      
+  lcd.setCursor(0,2);
+  lcd.print("Temp:");
+  lcd.setCursor(0,3);
+  lcd.print("rF:");
+  lcd.setCursor(0,1);
+  lcd.print("CO2:");
+
+  lcd.setCursor(19,2);
+  lcd.print("C");
+  
+  lcd.setCursor(19,3);
+  lcd.print("%");
+  lcd.setCursor(17,1);
+  lcd.print("ppm");
 }
 
 void loop() 
 { 
-  if (!client.connected()) {
-       reconnect();
-   }
+
+  while (!client.connected()) {
+    Serial.println("Connecting to MQTT...");
+
+     if (client.connect(clientIds, mqttUser, mqttPassword)) {
+ 
+      Serial.println("connected");  
+ 
+    } else {
+ 
+      Serial.print("failed with state ");
+      Serial.print(client.state());
+      delay(2000);
+ 
+    }
+  }
    client.loop();
    
    Mtemp = bme280.readTempC() - 2;
@@ -640,19 +680,24 @@ void loop()
    Mpress = bme280.readPressure();
    RAWppm = leseCO2();
    
+   
 
      
   ppmausgabe = RAWppm;
-  client.publish(topCO2, String(ppmausgabe).c_str(),false);
   lcd.setCursor(7,1);
   lcd.print("        ");
   lcd.setCursor(10,1);
   lcd.print(ppmausgabe);    
 
+  String TE = "{  \"topic\": \"org.Piper/PA28/things/twin/commands/modify\",  \"headers\": {},  \"path\": \"/features/telemetry/properties/JoelTemp/value\",  \"value\": "+String(Mtemp)+"}";
+  
+  String HU = "{  \"topic\": \"org.Piper/PA28/things/twin/commands/modify\",  \"headers\": {},  \"path\": \"/features/telemetry/properties/JoelHum/value\",  \"value\": "+String(Mhum)+"}";
+  
+  String CO = "{  \"topic\": \"org.Piper/PA28/things/twin/commands/modify\",  \"headers\": {},  \"path\": \"/features/telemetry/properties/JoelCO2/value\",  \"value\": "+String(ppmausgabe)+"}";
 
-  client.publish(topTEMP, String(Mtemp).c_str(),false);
-  client.publish(topHUM, String(Mhum).c_str(),false);
-  client.publish(topPRESS, String(Mpress).c_str(),false);
+  client.publish("telemetry", String(TE).c_str(),false);
+  client.publish("telemetry", String(HU).c_str(),false);
+  client.publish("telemetry", String(CO).c_str(),false);
 
   lcd.setCursor(10,2);
   lcd.print("      ");
@@ -663,33 +708,6 @@ void loop()
   lcd.print("      ");
   lcd.setCursor(10,3);
   lcd.print(String(Mhum).c_str());
-
-  if (ppmausgabe > 1400){  
-    zykluszeit = 1000; 
-    lcd.setCursor(0,0);
-    lcd.print("                    ");
-    lcd.setCursor(0,0);
-    lcd.print("Bitte Lueften!");
-    wasBad = true;
-
-    if ( toggleLight != false) {
-      toggleLight = false;
-      lcd.backlight();
-    } else {
-      toggleLight = true;
-      lcd.noBacklight();
-    }
-  } else {
-    if (wasBad == true) {
-      zykluszeit = 3000;
-      lcd.setCursor(0,0);
-      lcd.print("                   ");
-      lcd.setCursor(0,0);
-      lcd.print("inp smart CO2 sensor");
-      lcd.backlight();
-      wasBad = false;
-    }
-  }
  
   delay(zykluszeit);   
 
