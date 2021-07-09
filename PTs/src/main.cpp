@@ -10,7 +10,8 @@
 #include <PubSubClient.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
-#include <dtprovision.h>
+#include "dtprovision.h"
+#include "noderedprovision.h"
 #include "credentials.h"
 
 #define RX_PIN D7                                          
@@ -37,7 +38,8 @@ const String honoDevice = defHonoDevice;
 const int provDelay = 500;
 int counter = 4990;
 
-DigitalTwin DTI;
+DigitalTwin DigitalTwinInstance;
+NodeRed NodeRedInstance;
    
 const double ppmIncrement = 0.001005; 
 const double ppmstop = 1.8;
@@ -241,13 +243,13 @@ void setup() {
   // DTI INIT ############################################################
   //######################################################################
 
-  DTI.init(espClient, defServerIP, defTelemetryPort, defDevRegPort, defDittoPort, provDelay);
+  DigitalTwinInstance.init(espClient, defServerIP, defTelemetryPort, defDevRegPort, defDittoPort, provDelay);
 
   //######################################################################
   // HTTP POST CREATE TENANT #############################################
   //######################################################################
 
-  httpResponse = DTI.createHonoTenant(honoTenant);
+  httpResponse = DigitalTwinInstance.createHonoTenant(honoTenant);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -261,7 +263,7 @@ void setup() {
   // HTTP POST CREATE DEVICE #############################################
   //######################################################################
 
-  httpResponse = DTI.createHonoDevice(defHonoNamespace, defHonoDevice);
+  httpResponse = DigitalTwinInstance.createHonoDevice(defHonoNamespace, defHonoDevice);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -275,7 +277,7 @@ void setup() {
   // HTTP PUT CREDENTIALS ################################################
   //######################################################################
 
-  httpResponse = DTI.createHonoCredentials(defHonoDevicePassword);
+  httpResponse = DigitalTwinInstance.createHonoCredentials(defHonoDevicePassword);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -289,7 +291,9 @@ void setup() {
   // HTTP POST DITTO PIGGYBACK ###########################################
   //######################################################################
   
-  httpResponse = DTI.createDittoPiggyback();
+  String dittoPiggyback = "{\"targetActorSelection\":\"/system/sharding/connection\",\"headers\":{\"aggregate\":false},\"piggybackCommand\":{\"type\":\"connectivity.commands:createConnection\",\"connection\":{\"id\":\"hono-connection-for-" + honoTenant + "\",\"connectionType\":\"amqp-10\",\"connectionStatus\":\"open\",\"uri\":\"amqp://consumer%40HONO:verysecret@c2e-dispatch-router-ext:15672\",\"failoverEnabled\":true,\"sources\":[{\"addresses\":[\"telemetry/" + honoTenant + "\",\"event/" + honoTenant + "\"],\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"enforcement\":{\"input\":\"{{header:device_id}}\",\"filters\":[\"{{entity:id}}\"]},\"headerMapping\":{\"hono-device-id\":\"{{header:device_id}}\",\"content-type\":\"{{header:content-type}}\"},\"replyTarget\":{\"enabled\":true,\"address\":\"{{header:reply-to}}\",\"headerMapping\":{\"to\":\"command/" + honoTenant + "/{{header:hono-device-id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)|fn:default(topic:criterion)}}-response\",\"correlation-id\":\"{{header:correlation-id}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\"},\"expectedResponseTypes\":[\"response\",\"error\"]},\"acknowledgementRequests\":{\"includes\":[],\"filter\":\"fn:filter(header:qos,\'ne\',\'0\')\"}},{\"addresses\":[\"command_response/" + honoTenant + "/replies\"],\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"headerMapping\":{\"content-type\":\"{{header:content-type}}\",\"correlation-id\":\"{{header:correlation-id}}\",\"status\":\"{{header:status}}\"},\"replyTarget\":{\"enabled\":false,\"expectedResponseTypes\":[\"response\",\"error\"]}}],\"targets\":[{\"address\":\"command/" + honoTenant + "\",\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"topics\":[\"_/_/things/live/commands\",\"_/_/things/live/messages\"],\"headerMapping\":{\"to\":\"command/" + honoTenant + "/{{thing:id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\",\"correlation-id\":\"{{header:correlation-id}}\",\"reply-to\":\"{{fn:default(\'command_response/" + honoTenant + "/replies\')|fn:filter(header:response-required,\'ne\',\'false\')}}\"}},{\"address\":\"command/" + honoTenant + "\",\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"topics\":[\"_/_/things/twin/events\",\"_/_/things/live/events\"],\"headerMapping\":{\"to\":\"command/" + honoTenant + "/{{thing:id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\",\"correlation-id\":\"{{header:correlation-id}}\"}}]}}}";
+
+  httpResponse = DigitalTwinInstance.createDittoPiggyback(dittoPiggyback);
   
   lcd.clear();
   lcd.setCursor(0,1);
@@ -348,7 +352,7 @@ void setup() {
     }
   )=====";
 
-  httpResponse = DTI.createDittoPolicy(dittoPolicy);
+  httpResponse = DigitalTwinInstance.createDittoPolicy(dittoPolicy);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -377,7 +381,7 @@ void setup() {
     }
   )=====";
   
-  httpResponse = DTI.createDittoThing(dittoTwin);
+  httpResponse = DigitalTwinInstance.createDittoThing(dittoTwin);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -416,7 +420,49 @@ void setup() {
     }
   )=====";
 
-  httpResponse = DTI.createDittoFeatures(dittoFeatures);
+  httpResponse = DigitalTwinInstance.createDittoFeatures(dittoFeatures);
+
+  lcd.clear();
+  lcd.setCursor(0,1);
+  lcd.print("DITTO Feature PROV");
+  lcd.setCursor(0,3);
+  lcd.print("HTTP RESPONSE:");
+  lcd.setCursor(16,3);
+  lcd.print(httpResponse);
+
+  //######################################################################
+  // HTTP CREATE NODERED DASHBOARD #######################################
+  //######################################################################
+
+  NodeRedInstance.init(espClient, "http://jreichwald.de:1880", honoNamespace + ":" + honoDevice, "10");
+
+  String dittoAddress = "http://ditto:ditto@141.19.44.65:38443/api/2/things/lehmann:smartDTsensor/features/telemetry/properties/Joel";
+
+  NodeRedInstance.addGauge(dittoAddress + "Temp/value", "TEMP", "°C", 50, 5, 1);
+  NodeRedInstance.addGauge(dittoAddress + "Hum/value", "HUM", "%", 100, 0, 1);
+  NodeRedInstance.addGauge(dittoAddress + "Press/value", "PRESS", "hPa", 1050, 950, 1);
+  NodeRedInstance.addGauge(dittoAddress + "CO2/value", "CO2", "ppm", 2000, 400, 15);
+
+  NodeRedInstance.addChart(dittoAddress + "Temp/value", "TEMP", 50, 5, 1, 10);
+  NodeRedInstance.addChart(dittoAddress + "Hum/value", "HUM", 100, 0, 1, 10);
+  NodeRedInstance.addChart(dittoAddress + "Press/value", "PRESS", 1050, 950, 1, 10);
+  NodeRedInstance.addChart(dittoAddress + "CO2/value", "CO2", 2000, 400, 15, 10);
+
+  String dittoCommandAddress = "http://ditto:ditto@141.19.44.65:38443/api/2/things/lehmann:smartDTsensor/inbox/messages/";
+
+  NodeRedInstance.addSwitch(dittoCommandAddress + "backlightOff?timeout=0", dittoCommandAddress + "backlightOn?timeout=0", "Display Backlight");
+
+  NodeRedInstance.addButton(dittoCommandAddress + "espRestart?timeout=0", "Reboot Device");
+  
+  NodeRedInstance.createNodeRedDashboard();
+
+  lcd.clear();
+  lcd.setCursor(0,1);
+  lcd.print("NR Dashboard PROV");
+  lcd.setCursor(0,3);
+  lcd.print("HTTP RESPONSE:");
+  lcd.setCursor(16,3);
+  //lcd.print(httpResponse);
 
   //######################################################################
   // LCD ADJUSTMENTS #####################################################
