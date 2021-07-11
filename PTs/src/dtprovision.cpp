@@ -91,7 +91,7 @@ int DigitalTwin::createHonoCredentials (String pass)
     return response;
 }
 
-int DigitalTwin::createDittoPiggyback (String json)
+int DigitalTwin::createDittoPiggyback (char * json)
 {
     HTTPClient http;
     String srv = dittoURL + "/devops/piggyback/connectivity";
@@ -99,9 +99,7 @@ int DigitalTwin::createDittoPiggyback (String json)
     http.addHeader("Content-Type", "application/json");
     http.setAuthorization("devops", "foobar");
 
-    String jsonParse = json;
-
-    int response = http.POST(jsonParse);
+    int response = http.POST(json);
     Serial.println();
     Serial.println("###   Ditto Piggyback Provision   ##################################"); 
     Serial.println("POST to Server: "+srv);  
@@ -113,7 +111,7 @@ int DigitalTwin::createDittoPiggyback (String json)
     return response;
 }
 
-int DigitalTwin::createDittoPolicy (String json)
+int DigitalTwin::createDittoPolicy (char * json)
 {
     HTTPClient http;
     String srv = dittoURL + "/api/2/policies/" + honoNamespace + ":" + honoDevice;
@@ -121,9 +119,7 @@ int DigitalTwin::createDittoPolicy (String json)
     http.addHeader("Content-Type", "application/json");
     http.setAuthorization("ditto", "ditto");
 
-    String jsonParse = json;
-
-    int response = http.PUT(jsonParse);
+    int response = http.PUT(json);
     Serial.println();
     Serial.println("###   Ditto Policy Provision   #####################################"); 
     Serial.println("PUT to Server: "+srv);  
@@ -135,7 +131,7 @@ int DigitalTwin::createDittoPolicy (String json)
     return response;
 }
 
-int DigitalTwin::createDittoThing (String json)
+int DigitalTwin::createDittoThing (char * json)
 {
     HTTPClient http;
     String srv = dittoURL + "/api/2/things/" + honoNamespace + ":" + honoDevice;
@@ -143,9 +139,7 @@ int DigitalTwin::createDittoThing (String json)
     http.addHeader("Content-Type", "application/json");
     http.setAuthorization("ditto", "ditto");
 
-    String jsonParse = json;
-
-    int response = http.PUT(jsonParse);
+    int response = http.PUT(json);
     Serial.println();
     Serial.println("###   Ditto Thing Provision   ######################################");
     Serial.println("PUT to Server: "+srv);  
@@ -157,7 +151,7 @@ int DigitalTwin::createDittoThing (String json)
     return response;
 }
 
-int DigitalTwin::createDittoFeatures (String json)
+int DigitalTwin::createDittoFeatures (char * json)
 {
     HTTPClient http;
     String srv = dittoURL + "/api/2/things/" + honoNamespace + ":" + honoDevice + "/features";
@@ -165,9 +159,7 @@ int DigitalTwin::createDittoFeatures (String json)
     http.addHeader("Content-Type", "application/json");
     http.setAuthorization("ditto", "ditto");
 
-    String jsonParse = json;
-
-    int response = http.PUT(jsonParse);
+    int response = http.PUT(json);
     Serial.println();
     Serial.println("###   Ditto Features Provision   ###################################");
     Serial.println("PUT to Server: "+srv);  

@@ -12,16 +12,16 @@
 #include <WiFiClient.h>
 #include "dtprovision.h"
 #include "noderedprovision.h"
-#include "credentials.h"
+#include "..\..\..\..\Credentials\credentials.h"
 
 #define RX_PIN D7                                          
 #define TX_PIN D6 
-#define sensorname "KVE_PT"
-#define defHonoTenant "ceMOS"
-#define defHonoNamespace "lehmann"
-#define defHonoDevice "smartDTsensor"
+#define sensorname "KVE_PhgTf"
+#define defHonoTenant "KVs"
+#define defHonoNamespace "selfy"
+#define defHonoDevice "smsensor"
 #define defHonoDevicePassword "sehrgeheim"
-#define defServerIP "http://141.19.44.65"
+#define defServerIP "http://twinserver.kve.hs-mannheim.de"
 #define defTelemetryPort 18443
 #define defDevRegPort 28443
 #define defDittoPort 38443
@@ -38,12 +38,17 @@ const String honoDevice = defHonoDevice;
 const int provDelay = 500;
 int counter = 4990;
 
+
+const size_t lenJsonString = 2800;
+char jsonString[lenJsonString];
+const char* chonoTenant = defHonoTenant;
+const char* chonoNamespace = defHonoNamespace;
+const char* chonoDevice = defHonoDevice;
+
+
 DigitalTwin DigitalTwinInstance;
 NodeRed NodeRedInstance;
    
-const double ppmIncrement = 0.001005; 
-const double ppmstop = 1.8;
-
 #define Version "2.0.0"
 #define Date "08.07.2021"
 
@@ -53,26 +58,13 @@ const char* MQTT_BROKER = "141.19.44.65";
 String tmpMqttUser = honoDevice + "@" + honoTenant;
 const char* mqttUser = tmpMqttUser.c_str();
 const char* mqttPassword = defHonoDevicePassword;
-const char* clientIds = sensorname;
+const char* clientId = sensorname;
 char wiFiHostname[ ] = sensorname;
-String clientId = sensorname;
-long lastMsg = 0;
-char msg[50];
-int value = 0;
-int ppm, RAWppm;
-int cntppm = 0;
+int ppm;
 int ppmint;
-int ppmausgabe;
-double ppmfaktor;
-double ppmcal = 0;
-bool out;
 int i = 0;
-int Mtemp, Mhum, Mpress;
+int Mtemp, Mhum, Mpress, RAWppm;
 char antwort[9];
-int avgindex = 0;
-int sum = 0;
-bool flagMsg;
-int zykluszeit = 5000;
 bool noWifi = false;
 int cntWifi;
 
@@ -81,6 +73,26 @@ PubSubClient client(espClient);
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 BlueDot_BME280 bme280 = BlueDot_BME280();
 SoftwareSerial co2Serial(D7, D6); // RX, TX
+
+//######################################################################
+// Build publish String ################################################
+//######################################################################
+
+void buildPubString (char * property, int value )
+{
+  memset(jsonString, NULL, sizeof jsonString);
+  char tmp[32];
+
+  strcpy(jsonString,"{  \"topic\": \"");
+  strcat(jsonString,chonoNamespace);
+  strcat(jsonString,"/");
+  strcat(jsonString,chonoDevice);
+  strcat(jsonString,"/things/twin/commands/modify\",  \"headers\": {},  \"path\": \"/features/telemetry/properties/");
+  strcat(jsonString,property);
+  strcat(jsonString,"/value\",  \"value\": ");
+  strcat(jsonString,itoa(value,tmp,10));
+  strcat(jsonString,"}");
+}
 
 //######################################################################
 // MQTT CALLBACK #######################################################
@@ -95,7 +107,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   //for (int i = 0; i < length; i++) {
   //  Serial.print((char)payload[i]);
   //}
-  
+  // hier strcmp verwenden!!!
   if (String(topic) == "command///req//backlightOn") {
     lcd.backlight();
     Serial.println("-----------------------");
@@ -291,9 +303,31 @@ void setup() {
   // HTTP POST DITTO PIGGYBACK ###########################################
   //######################################################################
   
-  String dittoPiggyback = "{\"targetActorSelection\":\"/system/sharding/connection\",\"headers\":{\"aggregate\":false},\"piggybackCommand\":{\"type\":\"connectivity.commands:createConnection\",\"connection\":{\"id\":\"hono-connection-for-" + honoTenant + "\",\"connectionType\":\"amqp-10\",\"connectionStatus\":\"open\",\"uri\":\"amqp://consumer%40HONO:verysecret@c2e-dispatch-router-ext:15672\",\"failoverEnabled\":true,\"sources\":[{\"addresses\":[\"telemetry/" + honoTenant + "\",\"event/" + honoTenant + "\"],\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"enforcement\":{\"input\":\"{{header:device_id}}\",\"filters\":[\"{{entity:id}}\"]},\"headerMapping\":{\"hono-device-id\":\"{{header:device_id}}\",\"content-type\":\"{{header:content-type}}\"},\"replyTarget\":{\"enabled\":true,\"address\":\"{{header:reply-to}}\",\"headerMapping\":{\"to\":\"command/" + honoTenant + "/{{header:hono-device-id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)|fn:default(topic:criterion)}}-response\",\"correlation-id\":\"{{header:correlation-id}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\"},\"expectedResponseTypes\":[\"response\",\"error\"]},\"acknowledgementRequests\":{\"includes\":[],\"filter\":\"fn:filter(header:qos,\'ne\',\'0\')\"}},{\"addresses\":[\"command_response/" + honoTenant + "/replies\"],\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"headerMapping\":{\"content-type\":\"{{header:content-type}}\",\"correlation-id\":\"{{header:correlation-id}}\",\"status\":\"{{header:status}}\"},\"replyTarget\":{\"enabled\":false,\"expectedResponseTypes\":[\"response\",\"error\"]}}],\"targets\":[{\"address\":\"command/" + honoTenant + "\",\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"topics\":[\"_/_/things/live/commands\",\"_/_/things/live/messages\"],\"headerMapping\":{\"to\":\"command/" + honoTenant + "/{{thing:id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\",\"correlation-id\":\"{{header:correlation-id}}\",\"reply-to\":\"{{fn:default(\'command_response/" + honoTenant + "/replies\')|fn:filter(header:response-required,\'ne\',\'false\')}}\"}},{\"address\":\"command/" + honoTenant + "\",\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"topics\":[\"_/_/things/twin/events\",\"_/_/things/live/events\"],\"headerMapping\":{\"to\":\"command/" + honoTenant + "/{{thing:id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\",\"correlation-id\":\"{{header:correlation-id}}\"}}]}}}";
+  //String dittoPiggyback = "{\"targetActorSelection\":\"/system/sharding/connection\",\"headers\":{\"aggregate\":false},\"piggybackCommand\":{\"type\":\"connectivity.commands:createConnection\",\"connection\":{\"id\":\"hono-connection-for-"+ honoTenant +"\",\"connectionType\":\"amqp-10\",\"connectionStatus\":\"open\",\"uri\":\"amqp://consumer%40HONO:verysecret@c2e-dispatch-router-ext:15672\",\"failoverEnabled\":true,\"sources\":[{\"addresses\":[\"telemetry/"+ honoTenant +"\",\"event/"+ honoTenant +"\"],\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"enforcement\":{\"input\":\"{{header:device_id}}\",\"filters\":[\"{{entity:id}}\"]},\"headerMapping\":{\"hono-device-id\":\"{{header:device_id}}\",\"content-type\":\"{{header:content-type}}\"},\"replyTarget\":{\"enabled\":true,\"address\":\"{{header:reply-to}}\",\"headerMapping\":{\"to\":\"command/"+ honoTenant +"/{{header:hono-device-id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)|fn:default(topic:criterion)}}-response\",\"correlation-id\":\"{{header:correlation-id}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\"},\"expectedResponseTypes\":[\"response\",\"error\"]},\"acknowledgementRequests\":{\"includes\":[],\"filter\":\"fn:filter(header:qos,\'ne\',\'0\')\"}},{\"addresses\":[\"command_response/"+ honoTenant +"/replies\"],\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"headerMapping\":{\"content-type\":\"{{header:content-type}}\",\"correlation-id\":\"{{header:correlation-id}}\",\"status\":\"{{header:status}}\"},\"replyTarget\":{\"enabled\":false,\"expectedResponseTypes\":[\"response\",\"error\"]}}],\"targets\":[{\"address\":\"command/"+ honoTenant +"\",\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"topics\":[\"_/_/things/live/commands\",\"_/_/things/live/messages\"],\"headerMapping\":{\"to\":\"command/"+ honoTenant +"/{{thing:id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\",\"correlation-id\":\"{{header:correlation-id}}\",\"reply-to\":\"{{fn:default(\'command_response/"+ honoTenant +"/replies\')|fn:filter(header:response-required,\'ne\',\'false\')}}\"}},{\"address\":\"command/"+ honoTenant +"\",\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"topics\":[\"_/_/things/twin/events\",\"_/_/things/live/events\"],\"headerMapping\":{\"to\":\"command/"+ honoTenant +"/{{thing:id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\",\"correlation-id\":\"{{header:correlation-id}}\"}}]}}}";
 
-  httpResponse = DigitalTwinInstance.createDittoPiggyback(dittoPiggyback);
+  strcpy(jsonString,"{\"targetActorSelection\":\"/system/sharding/connection\",\"headers\":{\"aggregate\":false},\"piggybackCommand\":{\"type\":\"connectivity.commands:createConnection\",\"connection\":{\"id\":\"hono-connection-for-");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString,"\",\"connectionType\":\"amqp-10\",\"connectionStatus\":\"open\",\"uri\":\"amqp://consumer%40HONO:verysecret@c2e-dispatch-router-ext:15672\",\"failoverEnabled\":true,\"sources\":[{\"addresses\":[\"telemetry/");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString,"\",\"event/");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString,"\"],\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"enforcement\":{\"input\":\"{{header:device_id}}\",\"filters\":[\"{{entity:id}}\"]},\"headerMapping\":{\"hono-device-id\":\"{{header:device_id}}\",\"content-type\":\"{{header:content-type}}\"},\"replyTarget\":{\"enabled\":true,\"address\":\"{{header:reply-to}}\",\"headerMapping\":{\"to\":\"command/");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString,"/{{header:hono-device-id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)|fn:default(topic:criterion)}}-response\",\"correlation-id\":\"{{header:correlation-id}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\"},\"expectedResponseTypes\":[\"response\",\"error\"]},\"acknowledgementRequests\":{\"includes\":[],\"filter\":\"fn:filter(header:qos,\'ne\',\'0\')\"}},{\"addresses\":[\"command_response/");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString,"/replies\"],\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"headerMapping\":{\"content-type\":\"{{header:content-type}}\",\"correlation-id\":\"{{header:correlation-id}}\",\"status\":\"{{header:status}}\"},\"replyTarget\":{\"enabled\":false,\"expectedResponseTypes\":[\"response\",\"error\"]}}],\"targets\":[{\"address\":\"command/");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString,"\",\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"topics\":[\"_/_/things/live/commands\",\"_/_/things/live/messages\"],\"headerMapping\":{\"to\":\"command/");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString, "/{{thing:id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\",\"correlation-id\":\"{{header:correlation-id}}\",\"reply-to\":\"{{fn:default(\'command_response/");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString,"/replies\')|fn:filter(header:response-required,\'ne\',\'false\')}}\"}},{\"address\":\"command/");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString,"\",\"authorizationContext\":[\"pre-authenticated:hono-connection\"],\"topics\":[\"_/_/things/twin/events\",\"_/_/things/live/events\"],\"headerMapping\":{\"to\":\"command/");
+  strcat(jsonString,chonoTenant);
+  strcat(jsonString,"/{{thing:id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\",\"correlation-id\":\"{{header:correlation-id}}\"}}]}}}");
+  
+  httpResponse = DigitalTwinInstance.createDittoPiggyback(jsonString);
   
   lcd.clear();
   lcd.setCursor(0,1);
@@ -303,11 +337,13 @@ void setup() {
   lcd.setCursor(16,3);
   lcd.print(httpResponse);
 
+  memset(jsonString, NULL, sizeof jsonString);
+
   //######################################################################
   // HTTP CREATE DITTO POLICY ############################################
   //######################################################################
-  
-  String dittoPolicy = R"=====(
+
+  strcpy(jsonString, R"=====(
     {
       "entries": {
         "DEFAULT": {
@@ -350,9 +386,9 @@ void setup() {
         }
       }
     }
-  )=====";
+  )=====");
 
-  httpResponse = DigitalTwinInstance.createDittoPolicy(dittoPolicy);
+  httpResponse = DigitalTwinInstance.createDittoPolicy(jsonString);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -361,14 +397,20 @@ void setup() {
   lcd.print("HTTP RESPONSE:");
   lcd.setCursor(16,3);
   lcd.print(httpResponse);
+  
+  memset(jsonString, NULL, sizeof jsonString);
 
   //######################################################################
   // HTTP CREATE DITTO THING #############################################
   //######################################################################
   
-  String dittoTwin = R"=====(
+  strcpy(jsonString, R"=====(
     {
-      "policyId": ")=====" + honoNamespace + ":" + honoDevice + R"=====(",
+      "policyId": ")====="); 
+  strcat(jsonString,chonoNamespace);
+  strcat(jsonString,":");
+  strcat(jsonString,chonoDevice);
+  strcat(jsonString,R"=====(",
       "attributes": {
         "location": "Mannheim",
         "shortName": "HSMA",
@@ -379,9 +421,9 @@ void setup() {
       "features": {
       }
     }
-  )=====";
-  
-  httpResponse = DigitalTwinInstance.createDittoThing(dittoTwin);
+  )=====");
+
+  httpResponse = DigitalTwinInstance.createDittoThing(jsonString);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -390,12 +432,14 @@ void setup() {
   lcd.print("HTTP RESPONSE:");
   lcd.setCursor(16,3);
   lcd.print(httpResponse);
+
+  memset(jsonString, NULL, sizeof jsonString);
   
   //######################################################################
   // HTTP CREATE DITTO THING FEATURES ####################################
   //######################################################################
   
-  String dittoFeatures = R"=====(
+  strcpy(jsonString, R"=====(
     {
       "telemetry": {
         "properties": {
@@ -418,9 +462,9 @@ void setup() {
         }
       }
     }
-  )=====";
+  )=====");
 
-  httpResponse = DigitalTwinInstance.createDittoFeatures(dittoFeatures);
+  httpResponse = DigitalTwinInstance.createDittoFeatures(jsonString);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -430,13 +474,15 @@ void setup() {
   lcd.setCursor(16,3);
   lcd.print(httpResponse);
 
+  memset(jsonString, NULL, sizeof jsonString);
+
   //######################################################################
   // HTTP CREATE NODERED DASHBOARD #######################################
   //######################################################################
 
-  NodeRedInstance.init(espClient, "http://jreichwald.de:1880", honoNamespace + ":" + honoDevice, "10");
+  NodeRedInstance.init(espClient, "http://twinserver.kve.hs-mannheim.de:18443", honoNamespace + ":" + honoDevice, "10");
 
-  String dittoAddress = "http://ditto:ditto@141.19.44.65:38443/api/2/things/lehmann:smartDTsensor/features/telemetry/properties/Joel";
+  String dittoAddress = "http://ditto:ditto@twinserver.kve.hs-mannheim.de:38443/api/2/things/"+honoNamespace+":"+honoDevice+"/features/telemetry/properties/Joel";
 
   NodeRedInstance.addGauge(dittoAddress + "Temp/value", "TEMP", "°C", 50, 5, 1);
   NodeRedInstance.addGauge(dittoAddress + "Hum/value", "HUM", "%", 100, 0, 1);
@@ -448,7 +494,7 @@ void setup() {
   NodeRedInstance.addChart(dittoAddress + "Press/value", "PRESS", 1050, 950, 1, 10);
   NodeRedInstance.addChart(dittoAddress + "CO2/value", "CO2", 2000, 400, 15, 10);
 
-  String dittoCommandAddress = "http://ditto:ditto@141.19.44.65:38443/api/2/things/lehmann:smartDTsensor/inbox/messages/";
+  String dittoCommandAddress = "http://ditto:ditto@twinserver.kve.hs-mannheim.de:38443/api/2/things/"+honoNamespace+":"+honoDevice+"/inbox/messages/";
 
   NodeRedInstance.addSwitch(dittoCommandAddress + "backlightOff?timeout=0", dittoCommandAddress + "backlightOn?timeout=0", "Display Backlight");
 
@@ -507,7 +553,7 @@ void loop()
 
   while (!client.connected()) {
     Serial.println("Connecting to MQTT...");
-     if (client.connect(clientIds, mqttUser, mqttPassword)) {
+     if (client.connect(clientId, mqttUser, mqttPassword)) {
       Serial.println("connected");
       client.subscribe("command/+/+/req/#");  
     } else {
@@ -535,18 +581,14 @@ if (counter > 5000)
   // PUBLISH JSON SENSORDATA TO HONO #####################################
   //######################################################################     
 
-    String TE = "{  \"topic\": \"" + honoNamespace + "/" + defHonoDevice + "/things/twin/commands/modify\",  \"headers\": {},  \"path\": \"/features/telemetry/properties/JoelTemp/value\",  \"value\": "+String(Mtemp)+"}";
-    
-    String HU = "{  \"topic\": \"" + honoNamespace + "/" + defHonoDevice + "/things/twin/commands/modify\",  \"headers\": {},  \"path\": \"/features/telemetry/properties/JoelHum/value\",  \"value\": "+String(Mhum)+"}";
-
-    String PR = "{  \"topic\": \"" + honoNamespace + "/" + defHonoDevice + "/things/twin/commands/modify\",  \"headers\": {},  \"path\": \"/features/telemetry/properties/JoelPress/value\",  \"value\": "+String(Mpress)+"}";
-    
-    String CO = "{  \"topic\": \"" + honoNamespace + "/" + defHonoDevice + "/things/twin/commands/modify\",  \"headers\": {},  \"path\": \"/features/telemetry/properties/JoelCO2/value\",  \"value\": "+String(RAWppm)+"}";
-
-    client.publish("telemetry", String(TE).c_str(),false);
-    client.publish("telemetry", String(HU).c_str(),false);
-    client.publish("telemetry", String(PR).c_str(),false);
-    client.publish("telemetry", String(CO).c_str(),false);
+    buildPubString("JoelTemp", Mtemp);
+    client.publish("telemetry", jsonString,false);
+    buildPubString("JoelHum", Mhum);
+    client.publish("telemetry", jsonString,false);
+    buildPubString("JoelPress", Mpress);
+    client.publish("telemetry", jsonString,false);
+    buildPubString("JoelCO2", RAWppm);
+    client.publish("telemetry", jsonString,false);
 
   //######################################################################
   // LCD ADJUSTMENTS #####################################################
@@ -555,11 +597,11 @@ if (counter > 5000)
     lcd.setCursor(10,2);
     lcd.print("      ");
     lcd.setCursor(10,2);
-    lcd.print(String(Mtemp).c_str());
+    lcd.print(Mtemp);
     lcd.setCursor(10,3);
     lcd.print("      ");
     lcd.setCursor(10,3);
-    lcd.print(String(Mhum).c_str());
+    lcd.print(Mhum);
     lcd.setCursor(7,1);
     lcd.print("        ");
     lcd.setCursor(10,1);
@@ -570,6 +612,5 @@ if (counter > 5000)
   counter++;
 }
   delay(1);  
-
 }
 

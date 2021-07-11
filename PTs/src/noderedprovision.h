@@ -33,6 +33,8 @@ class NodeRed
     String pollingTime;
     String nodeRedToken;
     String id;
+    int cnt;
+    void run();
 
     public: 
 

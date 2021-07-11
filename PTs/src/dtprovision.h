@@ -36,10 +36,10 @@ class DigitalTwin
     int createHonoTenant (String tenant);
     int createHonoDevice (String ns, String device);
     int createHonoCredentials (String pass);
-    int createDittoPiggyback (String json);
-    int createDittoPolicy (String json);
-    int createDittoThing (String json);
-    int createDittoFeatures (String json);
+    int createDittoPiggyback (char * json);
+    int createDittoPolicy (char * json);
+    int createDittoThing (char * json);
+    int createDittoFeatures (char * json);
     int createNodeRedDashboard (String json);
 };
 

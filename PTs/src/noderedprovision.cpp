@@ -63,9 +63,13 @@ void NodeRed::addGauge(String address, String name, String unit, int max, int mi
     String gaugeID3 = String(random(99))+String(random(99))+String(random(99));
     
     jsonDashboard = jsonDashboard + "{\"id\":\""+id+"."+gaugeID0+"\",\"type\":\"inject\",\"z\":\""+zID+"\",\"repeat\":\""+pollingTime+"\",\"payloadType\":\"date\",\"x\":100,\"y\":"+ypos+",\"wires\":[[\""+id+"."+gaugeID1+"\"]]},{\"id\":\""+id+"."+gaugeID1+"\",\"type\":\"http request\",\"z\":\""+zID+"\",\"method\":\"GET\",\"url\":\""+address+"\",\"x\":300,\"y\":"+ypos+",\"wires\":[[\""+id+"."+gaugeID2+"\"]]}, {\"id\":\""+id+"."+gaugeID2+"\",\"type\":\"rbe\",\"z\":\""+zID+"\",\"func\":\"deadband\",\"gap\":\""+deadband+"\",\"inout\":\"out\",\"property\":\"payload\",\"x\":500,\"y\":"+ypos+",\"wires\":[[\""+id+"."+gaugeID3+"\"]]},{\"id\":\""+id+"."+gaugeID3+"\",\"type\":\"ui_gauge\",\"z\":\""+zID+"\",\"group\":\""+uiGroupLeftID+"\",\"order\":"+orderLeft+",\"gtype\":\"gage\",\"title\":\""+name+"\",\"label\":\""+unit+"\",\"format\":\"{{value}}\",\"min\":"+String(min)+",\"max\":\""+String(max)+"\",\"colors\":[\"#1605af\",\"#3ebe27\",\"#ca3838\"],\"x\":700,\"y\":"+ypos+"},";
+
+    Serial.println("Added "+name+" Gauge!");
     
     orderLeft += 1;
     ypos += 50;
+    cnt++;
+    void run();
 }
 
 void NodeRed::addChart(String address, String name, int max, int min, int deadband, int archiveHours)
@@ -74,11 +78,14 @@ void NodeRed::addChart(String address, String name, int max, int min, int deadba
     String chartID1 = String(random(99))+String(random(99))+String(random(99));
     String chartID2 = String(random(99))+String(random(99))+String(random(99));
     String chartID3 = String(random(99))+String(random(99))+String(random(99));
-    
+    void run();
     jsonDashboard = jsonDashboard + "{\"id\":\""+id+"."+chartID0+"\",\"type\":\"inject\",\"z\":\""+zID+"\",\"repeat\":\""+pollingTime+"\",\"payloadType\":\"date\",\"x\":100,\"y\":"+ypos+",\"wires\":[[\""+id+"."+chartID1+"\"]]},{\"id\":\""+id+"."+chartID1+"\",\"type\":\"http request\",\"z\":\""+zID+"\",\"method\":\"GET\",\"url\":\""+address+"\",\"x\":300,\"y\":"+ypos+",\"wires\":[[\""+id+"."+chartID2+"\"]]}, {\"id\":\""+id+"."+chartID2+"\",\"type\":\"rbe\",\"z\":\""+zID+"\",\"func\":\"deadband\",\"gap\":\""+deadband+"\",\"inout\":\"out\",\"property\":\"payload\",\"x\":500,\"y\":"+ypos+",\"wires\":[[\""+id+"."+chartID3+"\"]]},{\"id\":\""+id+"."+chartID3+"\",\"type\":\"ui_chart\",\"z\":\""+zID+"\",\"group\":\""+uiGroupMidID+"\",\"order\":"+orderMid+",\"label\":\""+name+"\",\"interpolate\":\"linear\",\"ymin\":\""+String(min)+"\",\"ymax\":\""+String(max)+"\",\"removeOlder\":\""+archiveHours+"\",\"removeOlderUnit\":\"3600\",\"outputs\":1,\"x\":700,\"y\":"+ypos+"},";
+
+    Serial.println("Added "+name+" Chart!");
 
     orderMid += 1;
     ypos += 50;
+    cnt++;
 }
 
 void NodeRed::addSwitch(String onAddress, String offAddress, String name)
@@ -88,22 +95,28 @@ void NodeRed::addSwitch(String onAddress, String offAddress, String name)
     String switchID2 = String(random(99))+String(random(99))+String(random(99));
     String switchID3 = String(random(99))+String(random(99))+String(random(99));
     String switchID4 = String(random(99))+String(random(99))+String(random(99));
-
+void run();
     jsonDashboard = jsonDashboard + "{\"id\":\""+id+"."+switchID0+"\",\"type\":\"ui_switch\",\"z\":\""+zID+"\",\"label\":\""+name+"\",\"group\":\""+uiGroupRightID+"\",\"order\":"+orderRight+",\"decouple\":\"false\",\"topic\":\"topic\",\"topicType\":\"msg\",\"onvalue\":\"true\",\"onvalueType\":\"bool\",\"offvalue\":\"false\",\"offvalueType\":\"bool\",\"x\":100,\"y\":"+String(ypos+25)+",\"wires\":[[\""+id+"."+switchID1+"\",\""+id+"."+switchID2+"\"]]},{\"id\":\""+id+"."+switchID1+"\",\"type\":\"switch\",\"z\":\""+zID+"\",\"property\":\"payload\",\"propertyType\":\"msg\",\"rules\":[{\"t\":\"true\"}],\"checkall\":\"true\",\"repair\":false,\"outputs\":1,\"x\":300,\"y\":"+String(ypos)+",\"wires\":[[\""+id+"."+switchID3+"\"]]},{\"id\":\""+id+"."+switchID2+"\",\"type\":\"switch\",\"z\":\""+zID+"\",\"property\":\"payload\",\"propertyType\":\"msg\",\"rules\":[{\"t\":\"false\"}],\"checkall\":\"true\",\"repair\":false,\"outputs\":1,\"x\":300,\"y\":"+String(ypos+50)+",\"wires\":[[\""+id+"."+switchID4+"\"]]},{\"id\":\""+id+"."+switchID3+"\",\"type\":\"http request\",\"z\":\""+zID+"\",\"method\":\"POST\",\"url\":\""+offAddress+"\",\"x\":500,\"y\":"+String(ypos)+"},{\"id\":\""+id+"."+switchID4+"\",\"type\":\"http request\",\"z\":\""+zID+"\",\"method\":\"POST\",\"url\":\""+onAddress+"\",\"x\":500,\"y\":"+String(ypos+50)+"},";
+
+    Serial.println("Added "+name+" Switch!");
 
     orderRight += 1;
     ypos += 100;
+    cnt++;
 }
 
 void NodeRed::addButton(String address, String name)
 {
     String buttonID0 = String(random(99))+String(random(99))+String(random(99));
     String buttonID1 = String(random(99))+String(random(99))+String(random(99));
-
+void run();
     jsonDashboard = jsonDashboard + "{\"id\":\""+id+"."+buttonID0+"\",\"type\":\"ui_button\",\"z\":\""+zID+"\",\"group\":\""+uiGroupRightID+"\",\"order\":"+orderRight+",\"label\":\""+name+"\",\"payloadType\":\"str\",\"topic\":\"topic\",\"topicType\":\"msg\",\"x\":100,\"y\":"+ypos+",\"wires\":[[\""+id+"."+buttonID1+"\"]]},{\"id\":\""+id+"."+buttonID1+"\",\"type\":\"http request\",\"z\":\""+zID+"\",\"method\":\"POST\",\"url\":\""+address+"\",\"x\":300,\"y\":"+ypos+"},";
+
+    Serial.println("Added "+name+" Button!");
 
     orderRight += 1;
     ypos += 50;
+    cnt++;
 }
 
 void NodeRed::createNodeRedDashboard ()
@@ -128,11 +141,16 @@ void NodeRed::createNodeRedDashboard ()
     Serial.println(response);
     Serial.println(http.getString());
     Serial.println();
-    Serial.println(jsonDashboard);
 
     http.end();
-    
+    void run();
     delay(ms);
+}
+
+void NodeRed::run()
+{
+    cnt++;
+    Serial.println("VOID RUN");
 }
 
 
