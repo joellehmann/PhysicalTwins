@@ -1,8 +1,8 @@
 // Library #############################################################
 // Autoprovisioning of Digital Twins ###################################
-// Masterthesis ########################################################
+// Masterthesis V 0.1.0 ################################################
 // by Joel Lehmann #####################################################
-// 08.07.2021 ##########################################################
+// 12.07.2021 ##########################################################
 
 #include "dtprovision.h"
 #include <Arduino.h>
@@ -14,119 +14,167 @@ DigitalTwin::DigitalTwin()
 }
 
 // Maybe including Credentials 
-bool DigitalTwin::init (WiFiClient &client, String ip, int telemetry, int devReg, int ditto, int zeit)
+bool DigitalTwin::init (WiFiClient &client, const char * ip, const char * devReg, const char * ditto, int zeit)
 {
     _client = &client;
-    serverIP = ip;
-    telemetryPort = telemetry;
-    devRegPort = devReg;
-    dittoPort = ditto;
     ms = zeit;
+    char tmp[32];
 
-    telemetryURL = ip + ":" + telemetryPort;
-    devRegURL = ip + ":" + devRegPort;
-    dittoURL = ip + ":" + dittoPort;
+    strcpy(devRegURL, ip);
+    strcat(devRegURL,":");
+    strcat(devRegURL,devReg);
+
+    strcpy(dittoURL, ip);
+    strcat(dittoURL,":");
+    strcat(dittoURL,ditto);
 
     return true;
 }
 
-int DigitalTwin::createHonoTenant (String tenant)
+int DigitalTwin::createHonoTenant (const char * tenant)
 {
     HTTPClient http;
-    honoTenant = tenant;
-    String srv = devRegURL + "/v1/tenants/" + honoTenant;
+    strcat(honoTenant,tenant);
+    
+    strcpy(srv, devRegURL);
+    strcat(srv,"/v1/tenants/");
+    strcat(srv,honoTenant);
+
     http.begin(*_client,srv);
 
     int response = http.POST("");
     Serial.println();
     Serial.println("###   Hono Tenant Provision   ######################################"); 
-    Serial.println("POST to Server: "+srv);  
+    Serial.print("POST to Server: ");  
+    Serial.println(srv);  
     Serial.print("HTTP Response code: ");
     Serial.println(response);
 
     http.end();
+    memset(srv, NULL, 128);
     delay(ms);
     return response;
 }
 
-int DigitalTwin::createHonoDevice (String ns, String device)
+int DigitalTwin::createHonoDevice (const char * ns, const char * device)
 {
     HTTPClient http;
-    honoNamespace = ns;
-    honoDevice = device;
-    String srv = devRegURL + "/v1/devices/" + honoTenant + "/" + honoNamespace + ":" + honoDevice;
+    strcpy(honoNamespace, ns);
+    strcpy(honoDevice, device);
+
+    strcpy(srv, devRegURL);
+    strcat(srv,"/v1/devices/");
+    strcat(srv,honoTenant);
+    strcat(srv,"/");
+    strcat(srv,honoNamespace);
+    strcat(srv,":");
+    strcat(srv,honoDevice);
+
     http.begin(*_client,srv);
 
     int response = http.POST("");
     Serial.println();
     Serial.println("###   Hono Device Provision   ######################################");  
-    Serial.println("POST to Server: "+srv);  
+    Serial.print("POST to Server: ");  
+    Serial.println(srv); 
     Serial.print("HTTP Response code: ");
     Serial.println(response);
 
     http.end();
+    memset(srv, NULL, 128);
     delay(ms);
     return response;
 }
 
-int DigitalTwin::createHonoCredentials (String pass)
+int DigitalTwin::createHonoCredentials (const char * pass)
 {
     HTTPClient http;
-    honoDevicePassword = pass;
-    String srv = devRegURL + "/v1/credentials/" + honoTenant + "/" + honoNamespace + ":" + honoDevice;
+
+    strcpy(srv, devRegURL);
+    strcat(srv,"/v1/credentials/");
+    strcat(srv,honoTenant);
+    strcat(srv,"/");
+    strcat(srv,honoNamespace);
+    strcat(srv,":");
+    strcat(srv,honoDevice);
+
     http.begin(*_client,srv);
     http.addHeader("Content-Type", "application/json");
 
-    String jsonParse = "[{\"type\":\"hashed-password\",\"auth-id\":\"" + honoDevice + "\",\"secrets\":[{\"pwd-plain\":\"" + honoDevicePassword + "\"}]}]";
-
-    int response = http.PUT(jsonParse);
+    char json[150];
+    strcpy(json,"[{\"type\":\"hashed-password\",\"auth-id\":\"");
+    strcat(json,honoDevice);
+    strcat(json,"\",\"secrets\":[{\"pwd-plain\":\"");
+    strcat(json,pass);
+    strcat(json,"\"}]}]");
+    
+    int response = http.PUT(json);
     Serial.println();
     Serial.println("###   Hono Credential Provision   ##################################"); 
-    Serial.println("PUT to Server: "+srv);  
+    Serial.print("PUT to Server: ");  
+    Serial.println(srv);  
     Serial.print("HTTP Response code: ");
     Serial.println(response);
 
     http.end();
+    memset(json, NULL, 150);
+    memset(srv, NULL, 128);
     delay(ms);
     return response;
 }
 
-int DigitalTwin::createDittoPiggyback (char * json)
+int DigitalTwin::createDittoPiggyback (const char * user, const char * pass, char * json)
 {
     HTTPClient http;
-    String srv = dittoURL + "/devops/piggyback/connectivity";
+
+    strcpy(srv, dittoURL);
+    strcat(srv,"/devops/piggyback/connectivity");
+
     http.begin(*_client,srv);
     http.addHeader("Content-Type", "application/json");
-    http.setAuthorization("devops", "foobar");
+    http.setAuthorization(user, pass);
 
     int response = http.POST(json);
     Serial.println();
     Serial.println("###   Ditto Piggyback Provision   ##################################"); 
-    Serial.println("POST to Server: "+srv);  
+    Serial.print("POST to Server: ");  
+    Serial.println(srv);  
     Serial.print("HTTP Response code: ");
     Serial.println(response);
 
     http.end();
+    memset(srv, NULL, 128);
     delay(ms);
     return response;
 }
 
-int DigitalTwin::createDittoPolicy (char * json)
+int DigitalTwin::createDittoPolicy (const char * user, const char * pass, char * json)
 {
     HTTPClient http;
-    String srv = dittoURL + "/api/2/policies/" + honoNamespace + ":" + honoDevice;
+
+    strcpy(dittoUser, user);
+    strcpy(dittoPass, pass);
+
+    strcpy(srv, dittoURL);
+    strcat(srv,"/api/2/policies/");
+    strcat(srv,honoNamespace);
+    strcat(srv,":");
+    strcat(srv,honoDevice);
+
     http.begin(*_client,srv);
     http.addHeader("Content-Type", "application/json");
-    http.setAuthorization("ditto", "ditto");
+    http.setAuthorization(dittoUser, dittoPass);
 
     int response = http.PUT(json);
     Serial.println();
     Serial.println("###   Ditto Policy Provision   #####################################"); 
-    Serial.println("PUT to Server: "+srv);  
+    Serial.print("PUT to Server: ");  
+    Serial.println(srv);  
     Serial.print("HTTP Response code: ");
     Serial.println(response);
 
     http.end();
+    memset(srv, NULL, 128);
     delay(ms);
     return response;
 }
@@ -134,19 +182,27 @@ int DigitalTwin::createDittoPolicy (char * json)
 int DigitalTwin::createDittoThing (char * json)
 {
     HTTPClient http;
-    String srv = dittoURL + "/api/2/things/" + honoNamespace + ":" + honoDevice;
+
+    strcpy(srv, dittoURL);
+    strcat(srv,"/api/2/things/");
+    strcat(srv,honoNamespace);
+    strcat(srv,":");
+    strcat(srv,honoDevice);
+
     http.begin(*_client,srv);
     http.addHeader("Content-Type", "application/json");
-    http.setAuthorization("ditto", "ditto");
+    http.setAuthorization(dittoUser, dittoPass);
 
     int response = http.PUT(json);
     Serial.println();
     Serial.println("###   Ditto Thing Provision   ######################################");
-    Serial.println("PUT to Server: "+srv);  
+    Serial.print("PUT to Server: ");  
+    Serial.println(srv);  
     Serial.print("HTTP Response code: ");
     Serial.println(response);
 
     http.end();
+    memset(srv, NULL, 128);
     delay(ms);
     return response;
 }
@@ -154,60 +210,38 @@ int DigitalTwin::createDittoThing (char * json)
 int DigitalTwin::createDittoFeatures (char * json)
 {
     HTTPClient http;
-    String srv = dittoURL + "/api/2/things/" + honoNamespace + ":" + honoDevice + "/features";
+
+    strcpy(srv, dittoURL);
+    strcat(srv,"/api/2/things/");
+    strcat(srv,honoNamespace);
+    strcat(srv,":");
+    strcat(srv,honoDevice);
+    strcat(srv,"/features");
+
     http.begin(*_client,srv);
     http.addHeader("Content-Type", "application/json");
-    http.setAuthorization("ditto", "ditto");
+    http.setAuthorization(dittoUser, dittoPass);
 
     int response = http.PUT(json);
     Serial.println();
     Serial.println("###   Ditto Features Provision   ###################################");
-    Serial.println("PUT to Server: "+srv);  
+    Serial.print("PUT to Server: ");  
+    Serial.println(srv);  
     Serial.print("HTTP Response code: ");
     Serial.println(response);
 
     http.end();
+    memset(srv, NULL, 128);
+    memset(devRegURL, NULL,64);
+    memset(dittoURL, NULL, 64);
+    memset(honoTenant, NULL, 16);
+    memset(honoDevice, NULL, 16);
+    memset(honoNamespace, NULL, 16);
+    memset(dittoUser, NULL, 16);
+    memset(dittoPass, NULL, 16);
     delay(ms);
     return response;
 }
 
-int DigitalTwin::createNodeRedDashboard (String json)
-{
-    HTTPClient http;
-    String srv = "http://jreichwald.de:1880/auth/token";
-    http.begin(*_client,srv);
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-
-    int response = http.POST("client_id=node-red-admin&grant_type=password&scope=*&username=admin&password=admin1234");
-
-    Serial.println();
-    Serial.println("###   Ditto Features Provision   ###################################");
-    Serial.println("POST to Server: "+srv);  
-    Serial.print("HTTP Response code: ");
-    Serial.println(response);
-
-    nodeRedToken = (http.getString()).substring(17,189);
-
-    http.end();
-
-    HTTPClient http2;
-    srv = "http://jreichwald.de:1880/flow";
-    http2.begin(*_client,srv);
-    http2.addHeader("Authorization", "Bearer " + nodeRedToken);
-    http2.addHeader("Content-Type", "application/json");
-
-    response = http2.POST(json);
-    Serial.println();
-    Serial.println("###   NodeRed Dashboard Provision   ###################################");
-    Serial.println("POST to Server: "+srv);  
-    Serial.print("HTTP Response code: ");
-    Serial.println(response);
-
-    http2.end();
-    
-    delay(ms);
-    return response;
-    
-}
 
 

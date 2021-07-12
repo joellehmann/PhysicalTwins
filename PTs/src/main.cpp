@@ -16,15 +16,17 @@
 
 #define RX_PIN D7                                          
 #define TX_PIN D6 
-#define sensorname "KVE_PhgTf"
-#define defHonoTenant "KVs"
-#define defHonoNamespace "selfy"
-#define defHonoDevice "smsensor"
+#define defHonoTenant "KVE"
+#define defHonoNamespace "smart"
+#define defHonoDevice "DTsensor"
 #define defHonoDevicePassword "sehrgeheim"
 #define defServerIP "http://twinserver.kve.hs-mannheim.de"
 #define defTelemetryPort 18443
-#define defDevRegPort 28443
-#define defDittoPort 38443
+#define defDevRegPort "28443"
+#define defDittoPort "38443"
+#define defProvDelay 500
+#define defDevOpsUser "devops"
+#define defDevOpsPwd "foobar"
 
 String serverName;
 int httpResponseCode;
@@ -35,11 +37,10 @@ int httpResonse;
 const String honoTenant = defHonoTenant;
 const String honoNamespace = defHonoNamespace;
 const String honoDevice = defHonoDevice;
-const int provDelay = 500;
 int counter = 4990;
 
 
-const size_t lenJsonString = 2800;
+const size_t lenJsonString = 30000;
 char jsonString[lenJsonString];
 const char* chonoTenant = defHonoTenant;
 const char* chonoNamespace = defHonoNamespace;
@@ -58,8 +59,8 @@ const char* MQTT_BROKER = "141.19.44.65";
 String tmpMqttUser = honoDevice + "@" + honoTenant;
 const char* mqttUser = tmpMqttUser.c_str();
 const char* mqttPassword = defHonoDevicePassword;
-const char* clientId = sensorname;
-char wiFiHostname[ ] = sensorname;
+const char* clientId = defHonoDevice;
+char wiFiHostname[ ] = defHonoDevice;
 int ppm;
 int ppmint;
 int i = 0;
@@ -255,13 +256,13 @@ void setup() {
   // DTI INIT ############################################################
   //######################################################################
 
-  DigitalTwinInstance.init(espClient, defServerIP, defTelemetryPort, defDevRegPort, defDittoPort, provDelay);
+  DigitalTwinInstance.init(espClient, defServerIP, defDevRegPort, defDittoPort, defProvDelay);
 
   //######################################################################
   // HTTP POST CREATE TENANT #############################################
   //######################################################################
 
-  httpResponse = DigitalTwinInstance.createHonoTenant(honoTenant);
+  httpResponse = DigitalTwinInstance.createHonoTenant(chonoTenant);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -327,7 +328,7 @@ void setup() {
   strcat(jsonString,chonoTenant);
   strcat(jsonString,"/{{thing:id}}\",\"subject\":\"{{header:subject|fn:default(topic:action-subject)}}\",\"content-type\":\"{{header:content-type|fn:default(\'application/vnd.eclipse.ditto+json\')}}\",\"correlation-id\":\"{{header:correlation-id}}\"}}]}}}");
   
-  httpResponse = DigitalTwinInstance.createDittoPiggyback(jsonString);
+  httpResponse = DigitalTwinInstance.createDittoPiggyback(defDevOpsUser, defDevOpsPwd, jsonString);
   
   lcd.clear();
   lcd.setCursor(0,1);
@@ -388,7 +389,7 @@ void setup() {
     }
   )=====");
 
-  httpResponse = DigitalTwinInstance.createDittoPolicy(jsonString);
+  httpResponse = DigitalTwinInstance.createDittoPolicy(defDevOpsUser, defDevOpsPwd, jsonString);
 
   lcd.clear();
   lcd.setCursor(0,1);

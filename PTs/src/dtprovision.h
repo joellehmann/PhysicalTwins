@@ -1,8 +1,8 @@
 // Library #############################################################
 // Autoprovisioning of Digital Twins ###################################
-// Masterthesis ########################################################
+// Masterthesis V 0.1.0 ################################################
 // by Joel Lehmann #####################################################
-// 08.07.2021 ##########################################################
+// 12.07.2021 ##########################################################
 
 #ifndef DT
 #define DT
@@ -15,32 +15,27 @@ class DigitalTwin
     private:
 
     WiFiClient* _client;
-    String serverIP;
-    int telemetryPort;
-    int devRegPort;
-    int dittoPort;
     int ms;
-    String telemetryURL;
-    String devRegURL;
-    String dittoURL;
-    String honoTenant;
-    String honoDevice;
-    String honoNamespace;
-    String honoDevicePassword;
-    String nodeRedToken;
+    char devRegURL[64];
+    char dittoURL[64];
+    char srv[128];
+    char honoTenant[16];
+    char honoDevice[16];
+    char honoNamespace[16];
+    char dittoUser[16];
+    char dittoPass[16];
 
     public: 
 
     DigitalTwin();
-    bool init (WiFiClient &client, String ip, int telemetry, int devReg, int ditto, int zeit);
-    int createHonoTenant (String tenant);
-    int createHonoDevice (String ns, String device);
-    int createHonoCredentials (String pass);
-    int createDittoPiggyback (char * json);
-    int createDittoPolicy (char * json);
+    bool init (WiFiClient &client, const char * ip, const char * devReg, const char * ditto, int zeit);
+    int createHonoTenant (const char * tenant);
+    int createHonoDevice (const char * ns, const char * device);
+    int createHonoCredentials (const char * pass);
+    int createDittoPiggyback (const char * user, const char * pass, char * json);
+    int createDittoPolicy (const char * user, const char * pass, char * json);
     int createDittoThing (char * json);
     int createDittoFeatures (char * json);
-    int createNodeRedDashboard (String json);
 };
 
 #endif
