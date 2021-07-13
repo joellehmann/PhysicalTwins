@@ -17,8 +17,8 @@
 #define RX_PIN D7                                          
 #define TX_PIN D6 
 #define defHonoTenant "KVE"
-#define defHonoNamespace "smart"
-#define defHonoDevice "DTsensor"
+#define defHonoNamespace "KVE"
+#define defHonoDevice "smartDTsensor7"
 #define defHonoDevicePassword "sehrgeheim"
 #define defServerIP "http://twinserver.kve.hs-mannheim.de"
 #define defTelemetryPort 18443
@@ -26,7 +26,9 @@
 #define defDittoPort "38443"
 #define defProvDelay 500
 #define defDevOpsUser "devops"
-#define defDevOpsPwd "foobar"
+#define defDevOpsPwd "foo"
+#define defDittoUser "ditto"
+#define defDittoPwd "ditto"
 
 String serverName;
 int httpResponseCode;
@@ -40,7 +42,7 @@ const String honoDevice = defHonoDevice;
 int counter = 4990;
 
 
-const size_t lenJsonString = 30000;
+const size_t lenJsonString = 10000;
 char jsonString[lenJsonString];
 const char* chonoTenant = defHonoTenant;
 const char* chonoNamespace = defHonoNamespace;
@@ -389,7 +391,7 @@ void setup() {
     }
   )=====");
 
-  httpResponse = DigitalTwinInstance.createDittoPolicy(defDevOpsUser, defDevOpsPwd, jsonString);
+  httpResponse = DigitalTwinInstance.createDittoPolicy(defDittoUser, defDittoPwd, jsonString);
 
   lcd.clear();
   lcd.setCursor(0,1);
@@ -490,9 +492,9 @@ void setup() {
   NodeRedInstance.addGauge(dittoAddress + "Press/value", "PRESS", "hPa", 1050, 950, 1);
   NodeRedInstance.addGauge(dittoAddress + "CO2/value", "CO2", "ppm", 2000, 400, 15);
 
-  NodeRedInstance.addChart(dittoAddress + "Temp/value", "TEMP", 50, 5, 1, 10);
-  NodeRedInstance.addChart(dittoAddress + "Hum/value", "HUM", 100, 0, 1, 10);
-  NodeRedInstance.addChart(dittoAddress + "Press/value", "PRESS", 1050, 950, 1, 10);
+  //NodeRedInstance.addChart(dittoAddress + "Temp/value", "TEMP", 50, 5, 1, 10);
+  //NodeRedInstance.addChart(dittoAddress + "Hum/value", "HUM", 100, 0, 1, 10);
+  //NodeRedInstance.addChart(dittoAddress + "Press/value", "PRESS", 1050, 950, 1, 10);
   NodeRedInstance.addChart(dittoAddress + "CO2/value", "CO2", 2000, 400, 15, 10);
 
   String dittoCommandAddress = "http://ditto:ditto@twinserver.kve.hs-mannheim.de:38443/api/2/things/"+honoNamespace+":"+honoDevice+"/inbox/messages/";
