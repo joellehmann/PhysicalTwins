@@ -18,7 +18,7 @@
 #define TX_PIN D6 
 #define defHonoTenant "KVE"
 #define defHonoNamespace "KVE"
-#define defHonoDevice "smartDTsensor7"
+#define defHonoDevice "smartDTsensor_b"
 #define defHonoDevicePassword "sehrgeheim"
 #define defServerIP "http://twinserver.kve.hs-mannheim.de"
 #define defTelemetryPort 18443
@@ -29,6 +29,8 @@
 #define defDevOpsPwd "foo"
 #define defDittoUser "ditto"
 #define defDittoPwd "ditto"
+#define defCaseColor "black"
+#define defDisplayColor "blue"
 
 String serverName;
 int httpResponseCode;
@@ -97,6 +99,22 @@ void buildPubString (char * property, int value )
   strcat(jsonString,"}");
 }
 
+void buildPubStringString (char * property, char * value )
+{
+  memset(jsonString, NULL, sizeof jsonString);
+  char tmp[32];
+
+  strcpy(jsonString,"{  \"topic\": \"");
+  strcat(jsonString,chonoNamespace);
+  strcat(jsonString,"/");
+  strcat(jsonString,chonoDevice);
+  strcat(jsonString,"/things/twin/commands/modify\",  \"headers\": {},  \"path\": \"/features/telemetry/properties/");
+  strcat(jsonString,property);
+  strcat(jsonString,"/value\",  \"value\": ");
+  strcat(jsonString,value);
+  strcat(jsonString,"}");
+}
+
 //######################################################################
 // MQTT CALLBACK #######################################################
 //######################################################################
@@ -115,11 +133,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
     lcd.backlight();
     Serial.println("-----------------------");
     Serial.println("COMMAND FROM DIGITAL TWIN: BACKLIGHT ON");
+    buildPubStringString("DisplayBacklight", "true");
+    client.publish("telemetry", jsonString,false);
   }
   if (String(topic) == "command///req//backlightOff") {
     lcd.noBacklight();
     Serial.println("-----------------------");
     Serial.println("COMMAND FROM DIGITAL TWIN: BACKLIGHT OFF");
+    buildPubStringString("DisplayBacklight", "false");
+    client.publish("telemetry", jsonString,false);
   }
   if (String(topic) == "command///req//espRestart") {
     Serial.println("-----------------------");
@@ -151,7 +173,10 @@ int leseCO2()
     i++;
     ppmint = 0;
     if (i>10) {  
-      ESP.restart();
+      co2Serial.end();
+      delay(500);
+      co2Serial.begin(9600);
+      //ESP.restart();
     }    
     return ppmint;   
   } else {
@@ -232,10 +257,10 @@ void setup() {
   lcd.clear();
   if ( noWifi == true ) {
     lcd.setCursor(0,0);
-    lcd.print("inp smart CO2 noWiFi");
+    //lcd.print("inp smart CO2 noWiFi");
   } else {
     lcd.setCursor(0,0);
-    lcd.print("inp smart CO2 sensor");
+    //lcd.print("inp smart CO2 sensor");
   }
   lcd.backlight();
       
@@ -415,10 +440,13 @@ void setup() {
   strcat(jsonString,chonoDevice);
   strcat(jsonString,R"=====(",
       "attributes": {
+        "devicetype": "Indoor Air Quality Measurement",
+        "deviceColor": ")=====");
+  strcat(jsonString,defCaseColor); 
+  strcat(jsonString,R"=====(",
         "location": "Mannheim",
-        "shortName": "HSMA",
-        "longName": "Hochschule Mannheim",
         "institute": "KVE",
+        "building": "P",
         "room": "007"
       },
       "features": {
@@ -446,19 +474,25 @@ void setup() {
     {
       "telemetry": {
         "properties": {
-          "JoelTemp": {
-            "value": null,
-            "unit": "Celsius"
+          "DisplayBacklight": {
+            "value": true,
+            "color": ")=====");
+  strcat(jsonString,defDisplayColor);
+  strcat(jsonString,R"=====("
           },
-          "JoelHum": {
+          "Temperature": {
             "value": null,
-            "unit": "Celsius"
+            "unit": "°C"
           },
-          "JoelPress": {
+          "Humidity": {
+            "value": null,
+            "unit": "%"
+          },
+          "Pressure": {
             "value": null,
             "unit": "hPa"
           },
-          "JoelCO2": {
+          "CO2": {
             "value": null,
             "unit": "ppm"
           }       
@@ -485,11 +519,13 @@ void setup() {
 
   NodeRedInstance.init(espClient, "http://twinserver.kve.hs-mannheim.de:18443", honoNamespace + ":" + honoDevice, "10");
 
-  String dittoAddress = "http://ditto:ditto@twinserver.kve.hs-mannheim.de:38443/api/2/things/"+honoNamespace+":"+honoDevice+"/features/telemetry/properties/Joel";
+  String dittoAddress = "http://ditto:ditto@twinserver.kve.hs-mannheim.de:38443/api/2/things/"+honoNamespace+":"+honoDevice+"/features/telemetry/properties/";
 
-  NodeRedInstance.addGauge(dittoAddress + "Temp/value", "TEMP", "°C", 50, 5, 1);
-  NodeRedInstance.addGauge(dittoAddress + "Hum/value", "HUM", "%", 100, 0, 1);
-  NodeRedInstance.addGauge(dittoAddress + "Press/value", "PRESS", "hPa", 1050, 950, 1);
+  NodeRedInstance.addText(dittoAddress + "DisplayBacklight/value", "Display Backlight");
+
+  NodeRedInstance.addGauge(dittoAddress + "Temperature/value", "TEMP", "°C", 50, 5, 1);
+  NodeRedInstance.addGauge(dittoAddress + "Humidity/value", "HUM", "%", 100, 0, 1);
+  NodeRedInstance.addGauge(dittoAddress + "Pressure/value", "PRESS", "hPa", 1050, 950, 1);
   NodeRedInstance.addGauge(dittoAddress + "CO2/value", "CO2", "ppm", 2000, 400, 15);
 
   //NodeRedInstance.addChart(dittoAddress + "Temp/value", "TEMP", 50, 5, 1, 10);
@@ -546,6 +582,9 @@ void setup() {
   lcd.print("%");
   lcd.setCursor(17,1);
   lcd.print("ppm");
+
+  buildPubStringString("DisplayBacklight", "true");
+  client.publish("telemetry", jsonString,false);
 }
 
 //######################################################################
@@ -584,13 +623,13 @@ if (counter > 5000)
   // PUBLISH JSON SENSORDATA TO HONO #####################################
   //######################################################################     
 
-    buildPubString("JoelTemp", Mtemp);
+    buildPubString("Temperature", Mtemp);
     client.publish("telemetry", jsonString,false);
-    buildPubString("JoelHum", Mhum);
+    buildPubString("Humidity", Mhum);
     client.publish("telemetry", jsonString,false);
-    buildPubString("JoelPress", Mpress);
+    buildPubString("Pressure", Mpress);
     client.publish("telemetry", jsonString,false);
-    buildPubString("JoelCO2", RAWppm);
+    buildPubString("CO2", RAWppm);
     client.publish("telemetry", jsonString,false);
 
   //######################################################################

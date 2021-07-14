@@ -34,12 +34,13 @@ class NodeRed
     String nodeRedToken;
     String id;
     int cnt;
-    void run();
+    
 
     public: 
 
     NodeRed();
     bool init (WiFiClient &client, String nRServer, String deviceID, String pollingTime);
+    void addText(String address, String name);
     void addGauge(String address, String name, String unit, int max, int min, int deadband);
     void addChart(String address, String name, int max, int min, int deadband, int archiveHours);
     void addSwitch(String onAddress, String offAddress, String name);
