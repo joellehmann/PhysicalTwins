@@ -16,21 +16,23 @@
 
 #define RX_PIN D7                                          
 #define TX_PIN D6 
-#define defHonoTenant "KVE"
-#define defHonoNamespace "KVE"
-#define defHonoDevice "smartDTsensor_b"
+#define defHonoTenant "HSMA"
+#define defHonoNamespace "HSMA"
+#define defHonoDevice "smartDTsensorbl"
 #define defHonoDevicePassword "sehrgeheim"
 #define defServerIP "http://twinserver.kve.hs-mannheim.de"
 #define defTelemetryPort 18443
 #define defDevRegPort "28443"
 #define defDittoPort "38443"
-#define defProvDelay 500
+#define defProvDelay 1000
 #define defDevOpsUser "devops"
 #define defDevOpsPwd "foo"
 #define defDittoUser "ditto"
 #define defDittoPwd "ditto"
-#define defCaseColor "black"
-#define defDisplayColor "blue"
+#define defCaseColor "white"
+#define defDisplayColor "green"
+#define Version "2.0.2"
+#define Date "15.07.2021"
 
 String serverName;
 int httpResponseCode;
@@ -50,12 +52,8 @@ const char* chonoTenant = defHonoTenant;
 const char* chonoNamespace = defHonoNamespace;
 const char* chonoDevice = defHonoDevice;
 
-
 DigitalTwin DigitalTwinInstance;
 NodeRed NodeRedInstance;
-   
-#define Version "2.0.0"
-#define Date "08.07.2021"
 
 const char* SSID = WLANSSID;
 const char* PSK = WLANPSK;
@@ -173,10 +171,10 @@ int leseCO2()
     i++;
     ppmint = 0;
     if (i>10) {  
-      co2Serial.end();
-      delay(500);
-      co2Serial.begin(9600);
-      //ESP.restart();
+      //co2Serial.end();
+      //delay(500);
+      //co2Serial.begin(9600);
+      ESP.restart();
     }    
     return ppmint;   
   } else {
@@ -257,10 +255,10 @@ void setup() {
   lcd.clear();
   if ( noWifi == true ) {
     lcd.setCursor(0,0);
-    //lcd.print("inp smart CO2 noWiFi");
+    lcd.print("smartDTsensor noWiFi");
   } else {
     lcd.setCursor(0,0);
-    //lcd.print("inp smart CO2 sensor");
+    lcd.print("smartDTsensor  by JL");
   }
   lcd.backlight();
       
@@ -469,7 +467,7 @@ void setup() {
   //######################################################################
   // HTTP CREATE DITTO THING FEATURES ####################################
   //######################################################################
-  
+
   strcpy(jsonString, R"=====(
     {
       "telemetry": {
@@ -517,6 +515,14 @@ void setup() {
   // HTTP CREATE NODERED DASHBOARD #######################################
   //######################################################################
 
+  lcd.clear();
+  lcd.setCursor(0,1);
+  lcd.print("NR Dashboard PROV");
+  lcd.setCursor(0,3);
+  //lcd.print("HTTP RESPONSE:");
+  //lcd.setCursor(16,3);
+  //lcd.print(httpResponse);
+
   NodeRedInstance.init(espClient, "http://twinserver.kve.hs-mannheim.de:18443", honoNamespace + ":" + honoDevice, "10");
 
   String dittoAddress = "http://ditto:ditto@twinserver.kve.hs-mannheim.de:38443/api/2/things/"+honoNamespace+":"+honoDevice+"/features/telemetry/properties/";
@@ -541,13 +547,7 @@ void setup() {
   
   NodeRedInstance.createNodeRedDashboard();
 
-  lcd.clear();
-  lcd.setCursor(0,1);
-  lcd.print("NR Dashboard PROV");
-  lcd.setCursor(0,3);
-  lcd.print("HTTP RESPONSE:");
-  lcd.setCursor(16,3);
-  //lcd.print(httpResponse);
+  
 
   //######################################################################
   // LCD ADJUSTMENTS #####################################################
@@ -601,7 +601,22 @@ void loop()
     } else {
       Serial.print("failed with state ");
       Serial.print(client.state());
-      client.subscribe("command/+/+/req/#");
+      Mtemp = bme280.readTempC() - 2;
+      Mhum = bme280.readHumidity() + 10;
+      Mpress = bme280.readPressure();
+      RAWppm = leseCO2();
+      lcd.setCursor(10,2);
+      lcd.print("      ");
+      lcd.setCursor(10,2);
+      lcd.print(Mtemp);
+      lcd.setCursor(10,3);
+      lcd.print("      ");
+      lcd.setCursor(10,3);
+      lcd.print(Mhum);
+      lcd.setCursor(7,1);
+      lcd.print("        ");
+      lcd.setCursor(10,1);
+      lcd.print(RAWppm);
       delay(2000);
     }
   }

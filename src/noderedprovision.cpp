@@ -25,6 +25,7 @@ bool NodeRed::init (WiFiClient &client, String nRServer, String deviceID, String
     String flowID = String(random(99))+String(random(99))+String(random(99));
     zID = id + "." + flowID;
     pollingTime = _pollingTime;
+    ms = 1000;
     
     nodeRedServer = nRServer;
 
@@ -154,7 +155,7 @@ void NodeRed::createNodeRedDashboard ()
     Serial.println("POST to Server: "+srv);  
     Serial.print("HTTP Response code: ");
     Serial.println(response);
-    Serial.println(http.getString());
+    //Serial.println(http.getString());
     Serial.println();
     void run();
     http.end();

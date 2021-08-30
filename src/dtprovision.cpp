@@ -200,6 +200,7 @@ int DigitalTwin::createDittoThing (char * json)
     Serial.println(srv);  
     Serial.print("HTTP Response code: ");
     Serial.println(response);
+    //Serial.println(http.getString());
 
     http.end();
     memset(srv, NULL, 128);
@@ -229,13 +230,14 @@ int DigitalTwin::createDittoFeatures (char * json)
     Serial.println(srv);  
     Serial.print("HTTP Response code: ");
     Serial.println(response);
+    //Serial.println(http.getString());
 
     http.end();
     memset(srv, NULL, 128);
     memset(devRegURL, NULL,64);
     memset(dittoURL, NULL, 64);
     memset(honoTenant, NULL, 16);
-    memset(honoDevice, NULL, 16);
+    memset(honoDevice, NULL, 32);
     memset(honoNamespace, NULL, 16);
     memset(dittoUser, NULL, 16);
     memset(dittoPass, NULL, 16);

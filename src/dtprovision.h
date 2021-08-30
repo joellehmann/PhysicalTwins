@@ -20,7 +20,7 @@ class DigitalTwin
     char dittoURL[64];
     char srv[128];
     char honoTenant[16];
-    char honoDevice[16];
+    char honoDevice[32];
     char honoNamespace[16];
     char dittoUser[16];
     char dittoPass[16];
