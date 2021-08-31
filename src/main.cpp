@@ -12,13 +12,13 @@
 #include <WiFiClient.h>
 #include "dtprovision.h"
 #include "noderedprovision.h"
-#include "..\..\..\..\Credentials\credentials.h"
+#include "..\..\Credentials\credentials.h"
 
 #define RX_PIN D7                                          
 #define TX_PIN D6 
 #define defHonoTenant "HSMA"
 #define defHonoNamespace "HSMA"
-#define defHonoDevice "smartDTsensorbl"
+#define defHonoDevice "smartDTsensorw"
 #define defHonoDevicePassword "sehrgeheim"
 #define defServerIP "http://twinserver.kve.hs-mannheim.de"
 #define defTelemetryPort 18443
@@ -131,14 +131,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
     lcd.backlight();
     Serial.println("-----------------------");
     Serial.println("COMMAND FROM DIGITAL TWIN: BACKLIGHT ON");
-    buildPubStringString("DisplayBacklight", "true");
+    buildPubString("DisplayBacklight", 1);
     client.publish("telemetry", jsonString,false);
   }
   if (String(topic) == "command///req//backlightOff") {
     lcd.noBacklight();
     Serial.println("-----------------------");
     Serial.println("COMMAND FROM DIGITAL TWIN: BACKLIGHT OFF");
-    buildPubStringString("DisplayBacklight", "false");
+    buildPubString("DisplayBacklight", 0);
     client.publish("telemetry", jsonString,false);
   }
   if (String(topic) == "command///req//espRestart") {
@@ -473,25 +473,25 @@ void setup() {
       "telemetry": {
         "properties": {
           "DisplayBacklight": {
-            "value": true,
+            "value": 0,
             "color": ")=====");
   strcat(jsonString,defDisplayColor);
   strcat(jsonString,R"=====("
           },
           "Temperature": {
-            "value": null,
+            "value": 0,
             "unit": "°C"
           },
           "Humidity": {
-            "value": null,
+            "value": 0,
             "unit": "%"
           },
           "Pressure": {
-            "value": null,
+            "value": 0,
             "unit": "hPa"
           },
           "CO2": {
-            "value": null,
+            "value": 0,
             "unit": "ppm"
           }       
         }
