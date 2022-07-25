@@ -13,8 +13,6 @@
 #include "dtprovision.h"
 #include "noderedprovision.h"
 #include "..\..\Credentials\credentials.h"
-#include <NTPClient.h>
-#include <WiFiUdp.h>
 
 #define RX_PIN D7                                          
 #define TX_PIN D6 
@@ -31,13 +29,11 @@
 #define defDevOpsPwd "foo"
 #define defDittoUser "ditto"
 #define defDittoPwd "ditto"
-#define defCaseColor "white"
-#define defDisplayColor "green"
-#define Version "2.1.0"
-#define Date "23.06.2022"
+#define defCaseColor "black"
+#define defDisplayColor "blue"
+#define Version "2.0.2"
+#define Date "15.07.2021"
 
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org");
 String serverName;
 int httpResponseCode;
 unsigned long lastTime = 0;
@@ -61,7 +57,7 @@ NodeRed NodeRedInstance;
 
 const char* SSID = WLANSSID;
 const char* PSK = WLANPSK;
-const char* MQTT_BROKER = "broker.hivemq.com";
+const char* MQTT_BROKER = "141.19.44.65";
 String tmpMqttUser = honoDevice + "@" + honoTenant;
 const char* mqttUser = tmpMqttUser.c_str();
 const char* mqttPassword = defHonoDevicePassword;
@@ -70,7 +66,6 @@ char wiFiHostname[ ] = defHonoDevice;
 int ppm;
 int ppmint;
 int i = 0;
-int i2 = 0;
 int Mtemp, Mhum, Mpress, RAWppm;
 char antwort[9];
 bool noWifi = false;
@@ -132,21 +127,21 @@ void callback(char* topic, byte* payload, unsigned int length) {
   //  Serial.print((char)payload[i]);
   //}
   // hier strcmp verwenden!!!
-  if (String(topic) == "CMD/"+(String)chonoNamespace+"/"+(String)chonoDevice+"/backlightOn") {
+  if (String(topic) == "command///req//backlightOn") {
     lcd.backlight();
     Serial.println("-----------------------");
     Serial.println("COMMAND FROM DIGITAL TWIN: BACKLIGHT ON");
     buildPubString("DisplayBacklight", 1);
     client.publish("telemetry", jsonString,false);
   }
-  if (String(topic) == "CMD/"+(String)chonoNamespace+"/"+(String)chonoDevice+"/backlightOff") {
+  if (String(topic) == "command///req//backlightOff") {
     lcd.noBacklight();
     Serial.println("-----------------------");
     Serial.println("COMMAND FROM DIGITAL TWIN: BACKLIGHT OFF");
     buildPubString("DisplayBacklight", 0);
     client.publish("telemetry", jsonString,false);
   }
-  if (String(topic) == "CMD/"+(String)chonoNamespace+"/"+(String)chonoDevice+"/espRestart") {
+  if (String(topic) == "command///req//espRestart") {
     Serial.println("-----------------------");
     Serial.println("COMMAND FROM DIGITAL TWIN: Restarting Device in 3 sec.");
     Serial.println("-----------------------");
@@ -171,12 +166,11 @@ int leseCO2()
   int antwortHigh = (int) antwort[2];
   int antwortLow = (int) antwort[3];
   ppmint = (256 * antwortHigh) + antwortLow;
-  Serial.println(ppmint);
     
-  if (antwort[0] != 0xFF || antwort[1] != 0x86 || ppmint < 200 || ppmint == 500  || ppmint > 4000 || Mtemp > 80 || Mhum < 1 || Mpress < 800) {
+  if (antwort[0] != 0xFF || antwort[1] != 0x86 || ppmint < 200 || ppmint > 4000 || Mtemp > 80 || Mhum < 1 || Mpress < 800) {
     i++;
-    ppmint = 399;
-    if (i>50) {  
+    ppmint = 0;
+    if (i>10) {  
       //co2Serial.end();
       //delay(500);
       //co2Serial.begin(9600);
@@ -186,7 +180,7 @@ int leseCO2()
   } else {
     i = 0;
   }
-return ppmint;  
+  return ppmint;
 }
 
 //######################################################################
@@ -224,8 +218,6 @@ void setup_wifi() {
 void setup() {
   
   lcd.init(); 
-  timeClient.begin();
-  timeClient.setTimeOffset(7200);
   lcd.backlight();
   lcd.clear();
   lcd.setCursor(0,0);
@@ -256,9 +248,9 @@ void setup() {
   bme280.parameter.tempOutsideCelsius = 15;            //default value of 15°C
   bme280.init();
   setup_wifi();
-  client.setServer(MQTT_BROKER, 1883);
+  client.setServer(MQTT_BROKER, 8883);
   client.setCallback(callback);
-  client.subscribe("CMD/#");
+  client.subscribe("command/+/+/req/#");
 
   lcd.clear();
   if ( noWifi == true ) {
@@ -266,7 +258,7 @@ void setup() {
     lcd.print("smartDTsensor noWiFi");
   } else {
     lcd.setCursor(0,0);
-    lcd.print("smartDTsensor   HSMA");
+    lcd.print("smartDTsensor  by JL");
   }
   lcd.backlight();
       
@@ -290,7 +282,7 @@ void setup() {
   //######################################################################
 
   DigitalTwinInstance.init(espClient, defServerIP, defDevRegPort, defDittoPort, defProvDelay);
-/*
+
   //######################################################################
   // HTTP POST CREATE TENANT #############################################
   //######################################################################
@@ -575,7 +567,7 @@ void setup() {
     lcd.print("smartDTsensor noWiFi");
   } else {
     lcd.setCursor(0,0);
-    lcd.print("smartDTsensor   HSMA");
+    lcd.print("smartDTsensor  by JL");
   }
       
   lcd.setCursor(0,2);
@@ -605,7 +597,7 @@ void loop()
     Serial.println("Connecting to MQTT...");
      if (client.connect(clientId, mqttUser, mqttPassword)) {
       Serial.println("connected");
-      client.subscribe("CMD/#");  
+      client.subscribe("command/+/+/req/#");  
     } else {
       Serial.print("failed with state ");
       Serial.print(client.state());
@@ -625,17 +617,17 @@ void loop()
       lcd.print("        ");
       lcd.setCursor(10,1);
       lcd.print(RAWppm);
-      delay(500);
+      delay(2000);
     }
   }
-  timeClient.update();
+
   client.loop();
 
   //######################################################################
   // REFRESH SENSORDATA ##################################################
   //###################################################################### 
 
-if (counter > 3000)
+if (counter > 5000)
 {
     Mtemp = bme280.readTempC() - 2;
     Mhum = bme280.readHumidity() + 10;
@@ -646,72 +638,15 @@ if (counter > 3000)
   // PUBLISH JSON SENSORDATA TO HONO #####################################
   //######################################################################     
 
-    String pub ="{\"topic\": \""+ (String)chonoNamespace +"/"+chonoDevice+"/things/twin/events/modified\",\"headers\": {\"hono-device-id\": \""+chonoNamespace+":"+chonoDevice+"\",\"correlation-id\": \"818fb5dc-fb98-480d-bd43-434d0568d5c6\",\"ditto-originator\":\"pre-authenticated:hono-connection\",\"response-required\": false,\"version\": 2,\"requested-acks\": [],\"content-type\": \"application/json\"},\"path\": \"/features/telemetry/properties/Temperature/value\",\"value\": "+Mtemp+",\"revision\": 1954300,\"timestamp\": \""+timeClient.getFormattedTime()+"\"}";
-    client.publish("twin", pub.c_str(),false);
+    buildPubString("Temperature", Mtemp);
+    client.publish("telemetry", jsonString,false);
+    buildPubString("Humidity", Mhum);
+    client.publish("telemetry", jsonString,false);
+    buildPubString("Pressure", Mpress);
+    client.publish("telemetry", jsonString,false);
+    buildPubString("CO2", RAWppm);
+    client.publish("telemetry", jsonString,false);
 
-    pub ="{\"topic\": \""+ (String)chonoNamespace +"/"+chonoDevice+"/things/twin/events/modified\",\"headers\": {\"hono-device-id\": \""+chonoNamespace+":"+chonoDevice+"\",\"correlation-id\": \"818fb5dc-fb98-480d-bd43-434d0568d5c6\",\"ditto-originator\":\"pre-authenticated:hono-connection\",\"response-required\": false,\"version\": 2,\"requested-acks\": [],\"content-type\": \"application/json\"},\"path\": \"/features/telemetry/properties/Humidity/value\",\"value\": "+Mhum+",\"revision\": 1954300,\"timestamp\": \""+timeClient.getFormattedTime()+"\"}";
-    client.publish("twin", pub.c_str(),false);
-
-    pub ="{\"topic\": \""+ (String)chonoNamespace +"/"+chonoDevice+"/things/twin/events/modified\",\"headers\": {\"hono-device-id\": \""+chonoNamespace+":"+chonoDevice+"\",\"correlation-id\": \"818fb5dc-fb98-480d-bd43-434d0568d5c6\",\"ditto-originator\":\"pre-authenticated:hono-connection\",\"response-required\": false,\"version\": 2,\"requested-acks\": [],\"content-type\": \"application/json\"},\"path\": \"/features/telemetry/properties/CO2/value\",\"value\": "+RAWppm+",\"revision\": 1954300,\"timestamp\": \""+timeClient.getFormattedTime()+"\"}";
-    client.publish("twin", pub.c_str(),false);
-
-    pub ="{\"topic\": \""+ (String)chonoNamespace +"/"+chonoDevice+"/things/twin/events/modified\",\"headers\": {\"hono-device-id\": \""+chonoNamespace+":"+chonoDevice+"\",\"correlation-id\": \"818fb5dc-fb98-480d-bd43-434d0568d5c6\",\"ditto-originator\":\"pre-authenticated:hono-connection\",\"response-required\": false,\"version\": 2,\"requested-acks\": [],\"content-type\": \"application/json\"},\"path\": \"/features/telemetry/properties/Pressure/value\",\"value\": "+Mpress+",\"revision\": 1954300,\"timestamp\": \""+timeClient.getFormattedTime()+"\"}";
-    client.publish("twin", pub.c_str(),false);
-/*
-    jsonString="{
-    \"topic\": \""+chonoNamespace+"/"+chonoDevice+"/things/twin/events/modified\",
-    \"headers\": {
-    \"hono-device-id\": \""+chonoNamespace+":"+chonoDevice+"\",
-    \"correlation-id\": \"818fb5dc-fb98-480d-bd43-434d0568d5c6\",
-    \"ditto-originator\": \"pre-authenticated:hono-connection\",
-    \"response-required\": false,
-    \"version\": 2,
-    \"requested-acks\": [],
-    \"content-type\": \"application/json\"
-    },
-    \"path\": \"/features/telemetry/properties/Humidity/value\",
-    \"value\": "+Mhum+",
-    \"revision\": 1954300,
-    \"timestamp\": \"2021-08-27T08:14:46.415443347Z\"
-    }";
-    client.publish("DTtelemetry", jsonString,false);
-    
-    jsonString="{
-    \"topic\": \""+chonoNamespace+"/"+chonoDevice+"/things/twin/events/modified\",
-    \"headers\": {
-    \"hono-device-id\": \""+chonoNamespace+":"+chonoDevice+"\",
-    \"correlation-id\": \"818fb5dc-fb98-480d-bd43-434d0568d5c6\",
-    \"ditto-originator\": \"pre-authenticated:hono-connection\",
-    \"response-required\": false,
-    \"version\": 2,
-    \"requested-acks\": [],
-    \"content-type\": \"application/json\"
-    },
-    \"path\": \"/features/telemetry/properties/CO2/value\",
-    \"value\": "+RAWppm+",
-    \"revision\": 1954300,
-    \"timestamp\": \"2021-08-27T08:14:46.415443347Z\"
-    }";
-    client.publish("DTtelemetry", jsonString,false);
-    
-    jsonString="{
-    \"topic\": \""+chonoNamespace+"/"+chonoDevice+"/things/twin/events/modified\",
-    \"headers\": {
-    \"hono-device-id\": \""+chonoNamespace+":"+chonoDevice+"\",
-    \"correlation-id\": \"818fb5dc-fb98-480d-bd43-434d0568d5c6\",
-    \"ditto-originator\": \"pre-authenticated:hono-connection\",
-    \"response-required\": false,
-    \"version\": 2,
-    \"requested-acks\": [],
-    \"content-type\": \"application/json\"
-    },
-    \"path\": \"/features/telemetry/properties/Pressure/value\",
-    \"value\": "+Mpress+",
-    \"revision\": 1954300,
-    \"timestamp\": \"2021-08-27T08:14:46.415443347Z\"
-    }";
-    client.publish("DTtelemetry", jsonString,false);
-*/
   //######################################################################
   // LCD ADJUSTMENTS #####################################################
   //######################################################################
